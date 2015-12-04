@@ -79,7 +79,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
     <IncludePath>E:\Data\Timothy\Documents\Visual Studio 2015\Projects\IsostratGame\IsostratGame\include;$(IncludePath)</IncludePath>
-    <OutDir>.\build\</OutDir>
+    <OutDir>..\build\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
