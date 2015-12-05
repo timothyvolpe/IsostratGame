@@ -1,5 +1,3 @@
-#define GLEW_STATIC
-
 #include "base.h"
 #include "def.h"
 #include "platform.h"
@@ -15,7 +13,7 @@
 #ifdef _DEBUG
 #pragma comment( lib, "glew32sd.lib" )
 #else
-#pragma comment( lib, "glew32.lib" )
+#pragma comment( lib, "glew32s.lib" )
 #endif
 
 // OpenGL

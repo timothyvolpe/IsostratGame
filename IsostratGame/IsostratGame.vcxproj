@@ -71,7 +71,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>E:\C++ Libaries\glew\include;E:\C++ Libaries\boost_1_57_0\boost;E:\C++ Libaries\SDL2-2.0.3\include;E:\Data\Timothy\Documents\Visual Studio 2015\Projects\IsostratGame\IsostratGame\include;$(IncludePath)</IncludePath>
+    <IncludePath>E:\C++ Lib Folder\glew2015\include;E:\C++ Libaries\boost_1_57_0\boost;E:\C++ Libaries\SDL2-2.0.3\include;E:\Data\Timothy\Documents\Visual Studio 2015\Projects\IsostratGame\IsostratGame\include;$(IncludePath)</IncludePath>
     <LibraryPath>E:\C++ Lib Folder\glew2015\lib\Debug\Win32;E:\C++ Libaries\boost_1_57_0\stage\lib;E:\C++ Libaries\SDL2-2.0.3_Runtime;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -79,7 +79,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>E:\C++ Libaries\glew\include;E:\C++ Libaries\boost_1_57_0\boost;E:\C++ Libaries\SDL2-2.0.3\include;E:\Data\Timothy\Documents\Visual Studio 2015\Projects\IsostratGame\IsostratGame\include;$(IncludePath)</IncludePath>
+    <IncludePath>E:\C++ Lib Folder\glew2015\include;E:\C++ Libaries\boost_1_57_0\boost;E:\C++ Libaries\SDL2-2.0.3\include;E:\Data\Timothy\Documents\Visual Studio 2015\Projects\IsostratGame\IsostratGame\include;$(IncludePath)</IncludePath>
     <OutDir>..\build\</OutDir>
     <LibraryPath>E:\C++ Lib Folder\glew2015\lib\Release\Win32;E:\C++ Libaries\boost_1_57_0\stage\lib;E:\C++ Libaries\SDL2-2.0.3_Runtime;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
@@ -92,7 +92,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;GLEW_STATIC;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>
@@ -128,7 +128,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;GLEW_STATIC;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
     </ClCompile>
     <Link>
