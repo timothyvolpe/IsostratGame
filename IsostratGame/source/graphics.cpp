@@ -3,10 +3,13 @@
 #include "base.h"
 #include "def.h"
 #include "graphics.h"
+#include "shader\shaderbase.h"
 
 CGraphics::CGraphics() {
 	m_pSDLWindow = NULL;
 	m_GLContext = 0;
+
+	m_pShaderManager = NULL;
 }
 CGraphics::~CGraphics() {
 }
@@ -52,10 +55,17 @@ bool CGraphics::initialize()
 	// OpenGL attributes
 	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
 
+	// Load the shaders
+	m_pShaderManager = new CShaderManager();
+	if( !m_pShaderManager->initialize() )
+		return false;
+
 	return true;
 }
 void CGraphics::destroy()
 {
+	// Destroy the shaders
+	DESTROY_DELETE( m_pShaderManager );
 	// Destroy the graphics
 	SDL_GL_DeleteContext( m_GLContext );
 	m_GLContext = 0;
