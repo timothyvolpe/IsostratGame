@@ -1,6 +1,6 @@
 # IsostratGame
 An isometric strategy game by Timothy Volpe</br>
-Title not final
+Title not final<br/>
 Copyright 2015 Timothy Volpe
 
 Programmed in C++ using OpenGL 3.2, SDL 2, GLEW 1.13, and Boost 1.59
