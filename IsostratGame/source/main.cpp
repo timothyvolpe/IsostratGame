@@ -22,8 +22,10 @@
 int CALLBACK WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow )
 {
 	// Start the game
-	if( !CGame::instance().start() )
+	if( !CGame::instance().start() ) {
+		CGame::instance().destroy();
 		return -1;
-
+	}
+	CGame::instance().destroy();
 	return 0;
 }
