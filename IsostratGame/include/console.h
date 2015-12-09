@@ -1,5 +1,7 @@
 #pragma once
 
+#include <fstream>
+
 #include "def.h"
 #include "platform.h"
 
@@ -12,9 +14,9 @@ enum : unsigned char
 
 // Variadic console output macros
 #if defined( _WINDOWS ) && defined( EXTERNAL_DEBUG_CONSOLE )
-#define PrintInfo(msg, ...) CGame::instance().getConsole()->printColor(L"", CONSOLE_COLOR_DEFAULT); wprintf(msg, ##__VA_ARGS__ )
-#define PrintWarn(msg, ...) CGame::instance().getConsole()->printColor(L"WARN: ", CONSOLE_COLOR_WARNING); wprintf(msg, ##__VA_ARGS__ )
-#define PrintError(msg, ...) CGame::instance().getConsole()->printColor(L"ERROR: ", CONSOLE_COLOR_ERROR); wprintf(msg, ##__VA_ARGS__ )
+#define PrintInfo(msg, ...) CGame::instance().getConsole()->printColor(L"", CONSOLE_COLOR_DEFAULT); wprintf(msg, ##__VA_ARGS__ ); fwprintf( CGame::instance().getConsole()->getLogFile(), msg, ##__VA_ARGS__ )
+#define PrintWarn(msg, ...) CGame::instance().getConsole()->printColor(L"WARN: ", CONSOLE_COLOR_WARNING); wprintf(msg, ##__VA_ARGS__ ); fwprintf( CGame::instance().getConsole()->getLogFile(), msg, ##__VA_ARGS__ )
+#define PrintError(msg, ...) CGame::instance().getConsole()->printColor(L"ERROR: ", CONSOLE_COLOR_ERROR); wprintf(msg, ##__VA_ARGS__ ); fwprintf( CGame::instance().getConsole()->getLogFile(), msg, ##__VA_ARGS__ )
 #else
 #define PrintInfo(msg, ...) 
 #define PrintWarn(msg, ...)
@@ -26,7 +28,10 @@ class CConsole
 private:
 #ifdef _WINDOWS
 	FILE *m_hCout, *m_hCerr;
+	FILE *m_hLogFile;
 #endif
+	bool m_bFileLogging;
+
 public:
 	CConsole();
 	~CConsole();
@@ -37,4 +42,6 @@ public:
 	void setColor( unsigned char color );
 
 	void printColor( std::wstring message, unsigned char color );
+
+	FILE* getLogFile();
 };
