@@ -11,4 +11,4 @@ class CConsole;
 class CGraphics;
 class CShaderManager;
 
-class CShaderBase;
+class CShaderProgram;
