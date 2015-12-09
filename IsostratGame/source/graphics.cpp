@@ -10,6 +10,9 @@ CGraphics::CGraphics() {
 	m_GLContext = 0;
 
 	m_pShaderManager = NULL;
+
+	m_testVBO = 0;
+	m_testVAO = 0;
 }
 CGraphics::~CGraphics() {
 }
@@ -60,6 +63,23 @@ bool CGraphics::initialize()
 	if( !m_pShaderManager->initialize() )
 		return false;
 
+	// Create the test VAO
+	glGenVertexArrays( 1, &m_testVAO );
+	glBindVertexArray( m_testVAO );
+	// Create the test VBO
+	glGenBuffers( 1, &m_testVBO );
+	glBindBuffer( GL_ARRAY_BUFFER, m_testVBO );
+	// Fill with basic vertex info
+	float basicTriangle[] = {
+		0.0f, 0.25f, 0.0f,
+		0.25f, -0.25f, 0.0f,
+		-0.25f, -0.25f, 0.0f
+	};
+	// Store the vertices
+	glBufferData( GL_ARRAY_BUFFER, sizeof( basicTriangle ), &basicTriangle[0], GL_STATIC_DRAW );
+	glEnableVertexAttribArray( 0 );
+	glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, 0, 0 );
+
 	return true;
 }
 void CGraphics::destroy()
@@ -79,7 +99,12 @@ void CGraphics::draw()
 {
 	glClear( GL_COLOR_BUFFER_BIT );
 
+	// Use simple shader
+	m_pShaderManager->getProgram( SHADERPROGRAM_SIMPLE )->bind();
+
 	// Render . . .
+	glBindVertexArray( m_testVAO );
+	glDrawArrays( GL_TRIANGLES, 0, 3 );
 
 	SDL_GL_SwapWindow( m_pSDLWindow );
 }

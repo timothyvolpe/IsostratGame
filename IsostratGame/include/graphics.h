@@ -1,5 +1,6 @@
 #pragma once
 
+#include <GL\glew.h>
 #include <SDL.h>
 
 class CShaderManager;
@@ -11,6 +12,9 @@ private:
 	SDL_GLContext m_GLContext;
 
 	CShaderManager *m_pShaderManager;
+
+	GLuint m_testVAO;
+	GLuint m_testVBO;
 public:
 	CGraphics();
 	~CGraphics();
