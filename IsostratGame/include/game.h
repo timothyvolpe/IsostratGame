@@ -3,16 +3,25 @@
 #include <SDL.h>
 #include <string>
 
+#define QUICK_QUIT
+
 class CConsole;
 class CGraphics;
+class CConfigLoader;
+class CInput;
 
 class CGame
 {
 private:
 	CConsole *m_pConsole;
 	CGraphics *m_pGraphics;
+	CConfigLoader *m_pConfigLoader;
+	CInput *m_pInput;
 
 	bool m_bRunning;
+	bool m_bMouseLocked;
+
+	double m_frameTime;
 
 	CGame();
 
@@ -35,4 +44,8 @@ public:
 	void displayMessagebox( std::wstring message );
 
 	CConsole* getConsole();
+	CConfigLoader* getConfigLoader();
+	CInput* getInput();
+
+	double getFrameTime();
 };
