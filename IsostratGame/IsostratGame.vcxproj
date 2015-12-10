@@ -164,18 +164,24 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="source\camera.cpp" />
+    <ClCompile Include="source\config.cpp" />
     <ClCompile Include="source\console.cpp" />
     <ClCompile Include="source\game.cpp" />
     <ClCompile Include="source\graphics.cpp" />
+    <ClCompile Include="source\input.cpp" />
     <ClCompile Include="source\main.cpp" />
     <ClCompile Include="source\shader\shaderbase.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\base.h" />
+    <ClInclude Include="include\camera.h" />
+    <ClInclude Include="include\config.h" />
     <ClInclude Include="include\console.h" />
     <ClInclude Include="include\def.h" />
     <ClInclude Include="include\game.h" />
     <ClInclude Include="include\graphics.h" />
+    <ClInclude Include="include\input.h" />
     <ClInclude Include="include\platform.h" />
     <ClInclude Include="include\shader\shaderbase.h" />
   </ItemGroup>
