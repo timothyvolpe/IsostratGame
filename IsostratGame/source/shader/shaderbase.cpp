@@ -10,7 +10,10 @@
 // CShaderManager //
 ////////////////////
 
-CShaderManager::CShaderManager() {
+CShaderManager::CShaderManager()
+{
+	m_ubGlobalMatrices.mvp = glm::mat4( 1.0f );
+	m_ubGlobalMatrices.mvp_ortho = glm::mat4( 1.0f );
 }
 CShaderManager::~CShaderManager() {
 }
@@ -53,7 +56,7 @@ bool CShaderManager::loadPrograms( ShaderProgramDescs programDescs )
 
 		// Create the program
 		pProgram = new CShaderProgram();
-		if( !pProgram->initializeProgram( (*it).name, pVert, pGeom, pFrag ) )
+		if( !pProgram->initializeProgram( (*it).name, pVert, pGeom, pFrag, (*it).uniformBlocks ) )
 			return false;
 		m_programObjects.push_back( pProgram );
 	}
@@ -105,12 +108,25 @@ bool CShaderManager::initialize()
 	// Create programs with the shader objects
 	// Shader objects are reference by created order, -1 is unused
 	programDescList.resize( SHADERPROGRAM_COUNT );
-	programDescList[SHADERPROGRAM_SIMPLE] = ShaderProgramDesc( L"SIMPLE", SIMPLE_VERT, NO_SHADER, SIMPLE_FRAG );
+
+	// Shader Program SIMPLE
+	UniformBlockList simple_uniformBlocks;
+	simple_uniformBlocks.push_back( std::pair<std::string, GLuint>( "GlobalMatrices", UNIFORMBLOCK_GLOBALMATRICES ) );
+	programDescList[SHADERPROGRAM_SIMPLE] = ShaderProgramDesc( L"SIMPLE", SIMPLE_VERT, NO_SHADER, SIMPLE_FRAG, simple_uniformBlocks );
+
 	if( !this->loadPrograms( programDescList ) )
 		return false;
 
 	// Destroy the shader objects as we dont need them anymore
 	this->destroyShaderObjects();
+
+	// Create the uniform buffers
+	m_uniformBuffers.resize( UNIFORMBLOCK_COUNT );
+	glGenBuffers( m_uniformBuffers.size(), &m_uniformBuffers[0] );
+	// GlobalMatrices
+	glBindBuffer( GL_UNIFORM_BLOCK, m_uniformBuffers[UNIFORMBLOCK_GLOBALMATRICES] );
+	glBufferData( GL_UNIFORM_BLOCK, sizeof( UBGlobalMatrices ), 0, GL_DYNAMIC_DRAW );
+	glBindBufferBase( GL_UNIFORM_BUFFER, UNIFORMBLOCK_GLOBALMATRICES, m_uniformBuffers[UNIFORMBLOCK_GLOBALMATRICES] );
 
 	return true;
 }
@@ -124,6 +140,21 @@ void CShaderManager::destroy()
 		DESTROY_DELETE( (*it) );
 	}
 	m_programObjects.clear();
+}
+
+bool CShaderManager::updateUniformBlock( GLuint index )
+{
+	switch( index )
+	{
+	case UNIFORMBLOCK_GLOBALMATRICES:
+		glBindBuffer( GL_UNIFORM_BUFFER, m_uniformBuffers[UNIFORMBLOCK_GLOBALMATRICES] );
+		glBufferData( GL_UNIFORM_BUFFER, sizeof( m_ubGlobalMatrices ), &m_ubGlobalMatrices, GL_DYNAMIC_DRAW );
+		break;
+	default:
+		PrintWarn( L"Attempted to update invalid uniform block\n" );
+		return false;
+	}
+	return true;
 }
 
 CShaderProgram* CShaderManager::getProgram( char programIndex ) {
@@ -228,7 +259,7 @@ bool CShaderObject::initializeShader( std::string name, GLenum type )
 
 	// Make sure the source compiled correctly
 	glGetShaderiv( m_shaderId, GL_COMPILE_STATUS, &compileStatus );
-	if( compileStatus = GL_FALSE )
+	if( compileStatus == GL_FALSE )
 	{
 		glGetShaderiv( m_shaderId, GL_INFO_LOG_LENGTH, &logLength );
 		if( logLength > 0 )
@@ -296,7 +327,7 @@ CShaderProgram::CShaderProgram() {
 CShaderProgram::~CShaderProgram() {
 }
 
-bool CShaderProgram::initializeProgram( std::wstring name, CShaderObject *pVertexShader, CShaderObject *pGeometryShader, CShaderObject *pFragmentShader )
+bool CShaderProgram::initializeProgram( std::wstring name, CShaderObject *pVertexShader, CShaderObject *pGeometryShader, CShaderObject *pFragmentShader, UniformBlockList uniformBlocks )
 {
 	GLint linkStatus, logLength;
 
@@ -356,6 +387,23 @@ bool CShaderProgram::initializeProgram( std::wstring name, CShaderObject *pVerte
 		}
 		glDeleteProgram( m_programId );
 		m_programId = 0;
+	}
+
+	// Find the uniform blocks
+	for( auto it = uniformBlocks.begin(); it != uniformBlocks.end(); it++ )
+	{
+		unsigned int index;
+
+		// Get the location
+		index = glGetUniformBlockIndex( m_programId, (*it).first.c_str() );
+		if( index == GL_INVALID_INDEX ) {
+			PrintWarn( L"Could not find uniform block \"%hs\", ignoring!\n", (*it).first.c_str() );
+			continue;
+		}
+		// Bind it to the correct index
+		glUniformBlockBinding( m_programId, index, (*it).second );
+		// Add it to the list
+		m_uniformBlocks.insert( std::pair<GLuint, GLuint>( index, (*it).second ) );
 	}
 
 	// Detach the shaders
