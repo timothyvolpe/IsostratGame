@@ -61,6 +61,8 @@ void CInput::update() {
 			m_bKeyLockQueue[i] = false;
 		}
 	}
+	m_mouseDeltaX = 0;
+	m_mouseDeltaY = 0;
 }
 
 int CInput::getMouseX() {
