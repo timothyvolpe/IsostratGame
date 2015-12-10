@@ -12,3 +12,4 @@
 
 #define FILESYSTEM_SHADERDIR L"data\\shaders"
 #define FILESYSTEM_LOGDIR L"logs"
+#define FILESYSTEM_CONFIGDIR L"data\\config"
