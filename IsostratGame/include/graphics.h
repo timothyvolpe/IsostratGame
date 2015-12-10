@@ -5,6 +5,7 @@
 #include <glm\glm.hpp>
 
 class CShaderManager;
+class CCamera;
 
 class CGraphics
 {
@@ -13,9 +14,10 @@ private:
 	SDL_GLContext m_GLContext;
 
 	CShaderManager *m_pShaderManager;
+	
+	CCamera *m_pCamera;
 
 	glm::mat4 m_projectionMatrix;
-	glm::mat4 m_viewMatrix;
 
 	GLuint m_testVAO;
 	GLuint m_testVBO;

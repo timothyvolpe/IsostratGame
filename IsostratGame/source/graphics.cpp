@@ -6,7 +6,9 @@
 #include "base.h"
 #include "def.h"
 #include "graphics.h"
+#include "config.h"
 #include "shader\shaderbase.h"
+#include "camera.h"
 
 CGraphics::CGraphics() {
 	m_pSDLWindow = NULL;
@@ -14,11 +16,12 @@ CGraphics::CGraphics() {
 
 	m_pShaderManager = NULL;
 
+	m_pCamera = NULL;
+
 	m_testVBO = 0;
 	m_testVAO = 0;
 
 	m_projectionMatrix = glm::mat4( 1.0f );
-	m_viewMatrix = glm::translate( glm::mat4( 1.0f ), glm::vec3( 0.0f, 0.0f, -2.0f ) );
 }
 CGraphics::~CGraphics() {
 }
@@ -26,6 +29,8 @@ CGraphics::~CGraphics() {
 bool CGraphics::initialize()
 {
 	GLenum glewError;
+	int windowX, windowY, resX, resY;
+	float fov;
 
 	// Request the proper version
 	SDL_GL_SetAttribute( SDL_GL_CONTEXT_MAJOR_VERSION, GL_VERSION_MAJOR );
@@ -37,12 +42,17 @@ bool CGraphics::initialize()
 
 	// Create the window
 	PrintInfo( L"Creating game window...\n" );
-	m_pSDLWindow = SDL_CreateWindow( WINDOW_TITLE_SHORT, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WINDOW_DEFRES_X, WINDOW_DEFRES_Y, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN );
+	windowX = CGame::instance().getConfigLoader()->getWindowX();
+	windowY = CGame::instance().getConfigLoader()->getWindowY();
+	m_pSDLWindow = SDL_CreateWindow( WINDOW_TITLE_SHORT, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowX, windowY, SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN );
 	if( !m_pSDLWindow ) {
 		CGame::instance().displayMessagebox( L"failed to create game window " );
 		return false;
 	}
-	this->calculateProjection( WINDOW_DEFRES_X, WINDOW_DEFRES_Y, 45.0f, 100.0f );
+	resX = CGame::instance().getConfigLoader()->getResolutionX();
+	resY = CGame::instance().getConfigLoader()->getResolutionY();
+	fov = CGame::instance().getConfigLoader()->getFieldOfView();
+	this->calculateProjection( resX, resY, fov, 100.0f );
 
 	// Create the openGL context
 	PrintInfo( L"Creating openGL context (requested version %d.%d)...\n", GL_VERSION_MAJOR, GL_VERSION_MINOR );
@@ -60,6 +70,9 @@ bool CGraphics::initialize()
 		return false;
 	}
 
+	// Print some GL information
+	PrintInfo( L"Graphics Information:\n > GL Version: %hs\n > GLSL Version: %hs\n > Hardware Vendor: %hs\n > Renderer: %hs\n", glGetString( GL_VERSION ), glGetString( GL_SHADING_LANGUAGE_VERSION ), glGetString( GL_VENDOR ), glGetString( GL_RENDERER ) );
+
 	SDL_GL_SetSwapInterval( 1 );
 
 	// OpenGL attributes
@@ -68,6 +81,11 @@ bool CGraphics::initialize()
 	// Load the shaders
 	m_pShaderManager = new CShaderManager();
 	if( !m_pShaderManager->initialize() )
+		return false;
+
+	// Create the camera
+	m_pCamera = new CCamera();
+	if( !m_pCamera->initialize() )
 		return false;
 
 	// Create the test VAO
@@ -91,6 +109,8 @@ bool CGraphics::initialize()
 }
 void CGraphics::destroy()
 {
+	// Destory camera
+	DESTROY_DELETE( m_pCamera );
 	// Destroy the shaders
 	DESTROY_DELETE( m_pShaderManager );
 	// Destroy the graphics
@@ -104,9 +124,12 @@ void CGraphics::destroy()
 
 void CGraphics::draw()
 {
-	glm::mat4 modelMatrix;
+	glm::mat4 viewMatrix, modelMatrix;
 
 	glClear( GL_COLOR_BUFFER_BIT );
+
+	// Update the camera
+	viewMatrix = m_pCamera->update();
 
 	// Use simple shader
 	m_pShaderManager->getProgram( SHADERPROGRAM_SIMPLE )->bind();
@@ -114,7 +137,7 @@ void CGraphics::draw()
 	// Render Test
 
 	// Send matrices
-	m_pShaderManager->m_ubGlobalMatrices.mvp = m_projectionMatrix * m_viewMatrix * modelMatrix;
+	m_pShaderManager->m_ubGlobalMatrices.mvp = m_projectionMatrix * viewMatrix * modelMatrix;
 	m_pShaderManager->updateUniformBlock( UNIFORMBLOCK_GLOBALMATRICES );
 	
 	glBindVertexArray( m_testVAO );
