@@ -1,4 +1,7 @@
 #include <GL\glew.h>
+#pragma warning( disable : 4996 )
+#include <glm\ext.hpp>
+#pragma warning( default: 4996 )
 
 #include "base.h"
 #include "def.h"
@@ -13,6 +16,9 @@ CGraphics::CGraphics() {
 
 	m_testVBO = 0;
 	m_testVAO = 0;
+
+	m_projectionMatrix = glm::mat4( 1.0f );
+	m_viewMatrix = glm::translate( glm::mat4( 1.0f ), glm::vec3( 0.0f, 0.0f, -2.0f ) );
 }
 CGraphics::~CGraphics() {
 }
@@ -36,6 +42,7 @@ bool CGraphics::initialize()
 		CGame::instance().displayMessagebox( L"failed to create game window " );
 		return false;
 	}
+	this->calculateProjection( WINDOW_DEFRES_X, WINDOW_DEFRES_Y, 45.0f, 100.0f );
 
 	// Create the openGL context
 	PrintInfo( L"Creating openGL context (requested version %d.%d)...\n", GL_VERSION_MAJOR, GL_VERSION_MINOR );
@@ -46,7 +53,7 @@ bool CGraphics::initialize()
 	}
 
 	// Initialize GLEW
-	PrintInfo( L"Initializing GLEW..." );
+	PrintInfo( L"Initializing GLEW...\n" );
 	glewError = glewInit();
 	if( glewError != GLEW_OK ) {
 		CGame::instance().displayMessagebox( L"failed to initialize GLEW" );
@@ -71,7 +78,7 @@ bool CGraphics::initialize()
 	glBindBuffer( GL_ARRAY_BUFFER, m_testVBO );
 	// Fill with basic vertex info
 	float basicTriangle[] = {
-		0.0f, 0.25f, 0.0f,
+		-0.25f, 0.25f, 0.0f,
 		0.25f, -0.25f, 0.0f,
 		-0.25f, -0.25f, 0.0f
 	};
@@ -97,14 +104,29 @@ void CGraphics::destroy()
 
 void CGraphics::draw()
 {
+	glm::mat4 modelMatrix;
+
 	glClear( GL_COLOR_BUFFER_BIT );
 
 	// Use simple shader
 	m_pShaderManager->getProgram( SHADERPROGRAM_SIMPLE )->bind();
 
-	// Render . . .
+	// Render Test
+
+	// Send matrices
+	m_pShaderManager->m_ubGlobalMatrices.mvp = m_projectionMatrix * m_viewMatrix * modelMatrix;
+	m_pShaderManager->updateUniformBlock( UNIFORMBLOCK_GLOBALMATRICES );
+	
 	glBindVertexArray( m_testVAO );
 	glDrawArrays( GL_TRIANGLES, 0, 3 );
 
 	SDL_GL_SwapWindow( m_pSDLWindow );
+}
+
+void CGraphics::calculateProjection( int width, int height, float fov, float zFar ) {
+	m_projectionMatrix = glm::perspective( 45.0f, (float)width / (float)height, 0.01f, 100.0f );
+}
+
+glm::mat4 CGraphics::getProjectionMatrix() {
+	return m_projectionMatrix;
 }

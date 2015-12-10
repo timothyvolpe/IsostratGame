@@ -2,6 +2,7 @@
 
 #include <GL\glew.h>
 #include <SDL.h>
+#include <glm\glm.hpp>
 
 class CShaderManager;
 
@@ -13,6 +14,9 @@ private:
 
 	CShaderManager *m_pShaderManager;
 
+	glm::mat4 m_projectionMatrix;
+	glm::mat4 m_viewMatrix;
+
 	GLuint m_testVAO;
 	GLuint m_testVBO;
 public:
@@ -23,4 +27,8 @@ public:
 	void destroy();
 
 	void draw();
+	
+	void calculateProjection( int width, int height, float fov, float zFar );
+
+	glm::mat4 getProjectionMatrix();
 };
