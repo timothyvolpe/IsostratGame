@@ -9,6 +9,10 @@ CInput::CInput() {
 		m_bKeyLocked[i] = false;
 		m_bKeyLockQueue[i] = false;
 	}
+	m_mouseX = 0;
+	m_mouseY = 0;
+	m_mouseDeltaX = 0;
+	m_mouseDeltaY = 0;
 }
 CInput::~CInput() {
 }
@@ -41,6 +45,11 @@ void CInput::handleEvent( SDL_Event sdlEvent )
 	case SDL_KEYUP:
 		this->keyUp( sdlEvent.key.keysym.scancode );
 		break;
+	case SDL_MOUSEMOTION:
+		m_mouseX = sdlEvent.motion.x;
+		m_mouseY = sdlEvent.motion.y;
+		m_mouseDeltaX = sdlEvent.motion.xrel;
+		m_mouseDeltaY = sdlEvent.motion.yrel;
 	default:
 		break;
 	}
@@ -52,4 +61,17 @@ void CInput::update() {
 			m_bKeyLockQueue[i] = false;
 		}
 	}
+}
+
+int CInput::getMouseX() {
+	return m_mouseX;
+}
+int CInput::getMouseY() {
+	return m_mouseY;
+}
+int CInput::getMouseDeltaX() {
+	return m_mouseDeltaX;
+}
+int CInput::getMouseDeltaY() {
+	return m_mouseDeltaY;
 }
