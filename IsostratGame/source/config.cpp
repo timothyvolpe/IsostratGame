@@ -24,6 +24,12 @@ bool CConfigLoader::saveConfig()
 	m_xmlTree.put( "GameConfig.Video.IsBorderless", m_isBorderless );
 	m_xmlTree.put( "GameConfig.Video.FOV", m_fieldOfView );
 
+	// Keybinds
+	m_xmlTree.put( "GameConfig.Keybinds.WalkForward", m_keybinds[KEYBIND_WALK_FORWARD] );
+	m_xmlTree.put( "GameConfig.Keybinds.WalkBackward", m_keybinds[KEYBIND_WALK_BACKWARD] );
+	m_xmlTree.put( "GameConfig.Keybinds.StrafeLeft", m_keybinds[KEYBIND_STRAFE_LEFT] );
+	m_xmlTree.put( "GameConfig.Keybinds.StrafeRight", m_keybinds[KEYBIND_STRAFE_RIGHT] );
+
 	// Make sure the folder exists
 	configPath = boost::filesystem::current_path();
 	configPath /= FILESYSTEM_CONFIGDIR;
@@ -65,6 +71,13 @@ bool CConfigLoader::initializeAndLoad()
 	m_isFullScreen = m_xmlTree.get( "GameConfig.Video.IsFullscreen", false );
 	m_isBorderless = m_xmlTree.get( "GameConfig.Video.IsBorderless", false );
 	m_fieldOfView = m_xmlTree.get( "GameConfig.Video.FOV", 45.0f );
+
+	// Get the key binds
+	m_keybinds.resize( KEYBIND_COUNT );
+	m_keybinds[KEYBIND_WALK_FORWARD] = m_xmlTree.get( "GameConfig.Keybinds.WalkForward", (unsigned short)SDL_SCANCODE_W );
+	m_keybinds[KEYBIND_WALK_BACKWARD] = m_xmlTree.get( "GameConfig.Keybinds.WalkBackward", (unsigned short)SDL_SCANCODE_S );
+	m_keybinds[KEYBIND_STRAFE_LEFT] = m_xmlTree.get( "GameConfig.Keybinds.StrafeLeft", (unsigned short)SDL_SCANCODE_A );
+	m_keybinds[KEYBIND_STRAFE_RIGHT] = m_xmlTree.get( "GameConfig.Keybinds.StrafeRight", (unsigned short)SDL_SCANCODE_D );
 
 	return true;
 }
@@ -121,4 +134,13 @@ float CConfigLoader::getFieldOfView() {
 }
 void CConfigLoader::setFieldOfView( float fov ) {
 	m_fieldOfView = fov;
+}
+// Key binds
+unsigned short CConfigLoader::getKeybind( unsigned short keybind ) {
+	if( m_keybinds[keybind] >= SDL_NUM_SCANCODES )
+		return 0;
+	return m_keybinds[keybind];
+}
+void CConfigLoader::setKeybind( unsigned short keybind, unsigned short key ) {
+	m_keybinds[keybind] = key;
 }

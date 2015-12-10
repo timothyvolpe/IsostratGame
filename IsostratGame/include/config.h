@@ -1,11 +1,22 @@
 #pragma once
 
 #include <boost\property_tree\ptree.hpp>
+#include <vector>
+
+enum
+{
+	KEYBIND_WALK_FORWARD = 0,
+	KEYBIND_WALK_BACKWARD,
+	KEYBIND_STRAFE_LEFT,
+	KEYBIND_STRAFE_RIGHT,
+	KEYBIND_COUNT
+};
 
 class CConfigLoader
 {
 private:
 	boost::property_tree::ptree m_xmlTree;
+	std::vector<unsigned short> m_keybinds;
 
 	int m_windowX, m_windowY;
 	int m_resolutionX, m_resolutionY;
@@ -40,4 +51,7 @@ public:
 
 	float getFieldOfView();
 	void setFieldOfView( float fov );
+
+	unsigned short getKeybind( unsigned short keybind );
+	void setKeybind( unsigned short keybind, unsigned short key );
 };
