@@ -1,6 +1,6 @@
-#version 410
+#version 150
 
-layout(location = 0) in vec3 in_position;
+in vec3 in_position;
 //layout(location = 1) in vec3 in_color;
 
 uniform mat4 projectionMatrix;
