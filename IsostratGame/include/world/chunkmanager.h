@@ -5,7 +5,7 @@
 #include <glm\glm.hpp>
 
 #define CHUNK_GRID_SIZE 0.25f
-#define CHUNK_SIDE_LENGTH 2 // in grid squares
+#define CHUNK_SIDE_LENGTH 16 // in grid squares
 #define CHUNK_HEIGHT 1 // in grid squares
 #define CHUNK_VERTEX_COUNT (CHUNK_SIDE_LENGTH+1)*(CHUNK_SIDE_LENGTH+1)*(CHUNK_HEIGHT+1)
 #define CHUNK_INDEX_COUNT (CHUNK_SIDE_LENGTH*CHUNK_SIDE_LENGTH*CHUNK_HEIGHT*36)
@@ -15,7 +15,7 @@
 #pragma pack(push, 1)
 typedef struct
 {
-	glm::vec3 pos;
+	glm::ivec3 pos;
 	glm::vec3 color;
 } ChunkVertex;
 #pragma pack(pop, 1)
@@ -32,6 +32,8 @@ private:
 	std::vector<GLuint> m_bufferIndexCounts;
 
 	unsigned int m_chunkCount;
+
+	bool m_bUpdateScale;
 
 	bool generateMeshes();
 	void destroyMeshes();

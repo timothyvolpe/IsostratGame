@@ -9,8 +9,9 @@
 
 CChunkManager::CChunkManager()
 {
-	m_chunkViewDistance = 0;
+	m_chunkViewDistance = 2;
 	m_chunkCount = 0;
+	m_bUpdateScale = true;
 }
 CChunkManager::~CChunkManager() {
 }
@@ -67,16 +68,19 @@ bool CChunkManager::generateMeshes()
 
 		// Vertex buffer
 		glBindBuffer( GL_ARRAY_BUFFER, m_chunkVertexBuffers[i] );
-		chunkVertices.reserve( verticesPerBuffer );
-		for( unsigned int chunk = 0; chunk < chunksPerBuffer && chunk < m_chunkCount - chunksGenerated; chunk++ )
+		chunkVertices.reserve( m_bufferChunkCounts[i]*CHUNK_VERTEX_COUNT );
+		for( unsigned int chunk = 0; chunk < m_bufferChunkCounts[i]; chunk++ )
 		{
 			// For each chunk
 			for( unsigned int y = 0; y < CHUNK_HEIGHT + 1; y++ ) {
 				for( unsigned int x = 0; x < CHUNK_SIDE_LENGTH + 1; x++ ) {
 					for( unsigned int z = 0; z < CHUNK_SIDE_LENGTH + 1; z++ ) {
 						ChunkVertex vertex;
-						vertex.pos = glm::vec3( x*CHUNK_GRID_SIZE, y*CHUNK_GRID_SIZE, z*CHUNK_GRID_SIZE );
-						vertex.color = glm::vec3( 0.0f, 1.0f, 0.0f );
+						vertex.pos = glm::ivec3( x, y, z );
+						if( chunk % 2 == 0 )
+							vertex.color = glm::vec3( 0.0f, 1.0f, 0.0f );
+						else
+							vertex.color = glm::vec3( 0.0f, 1.0f, 1.0f );
 						chunkVertices.push_back( vertex );
 					}
 				}
@@ -84,19 +88,19 @@ bool CChunkManager::generateMeshes()
 		}
 		// Set the data
 		glBufferData( GL_ARRAY_BUFFER, sizeof( ChunkVertex )*chunkVertices.size(), &chunkVertices[0], GL_STATIC_DRAW );
-		glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, sizeof( float )*6, (GLvoid*)offsetof( ChunkVertex, pos ) );
-		glVertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, sizeof( float )*6, (GLvoid*)offsetof( ChunkVertex, color ) );
+		glVertexAttribIPointer( 0, 3, GL_INT, sizeof( ChunkVertex ), (GLvoid*)offsetof( ChunkVertex, pos ) );
+		glVertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, sizeof( ChunkVertex ), (GLvoid*)offsetof( ChunkVertex, color ) );
 		glEnableVertexAttribArray( 0 );
 		glEnableVertexAttribArray( 1 );
 
 		// Index buffer
 		glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, m_chunkIndexBuffers[i] );
-		chunkIndices.resize( indicesPerBuffer );
-		for( unsigned int chunk = 0; chunk < chunksPerBuffer && chunk < m_chunkCount - chunksGenerated; chunk++ )
+		chunkIndices.resize( m_bufferChunkCounts[i]*CHUNK_INDEX_COUNT );
+		for( unsigned int chunk = 0; chunk < m_bufferChunkCounts[i]; chunk++ )
 		{
 			unsigned int firstVertex;
 			unsigned int layerSize = (CHUNK_SIDE_LENGTH + 1)*(CHUNK_SIDE_LENGTH + 1);
-			unsigned int chunkRow = (CHUNK_SIDE_LENGTH + 1);
+			unsigned int rowSize = (CHUNK_SIDE_LENGTH + 1);
 
 			chunkIndex = 0;
 			firstVertex = chunk*CHUNK_VERTEX_COUNT;
@@ -106,51 +110,52 @@ bool CChunkManager::generateMeshes()
 				{
 					for( unsigned int z = 0; z < CHUNK_SIDE_LENGTH; z++ )
 					{
-						// TOP
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + 1;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + (chunkRow + 1);
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + 1;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + (chunkRow + 1);
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + (chunkRow + 1) + 1;
 						// BOTTOM
-						chunkIndices[firstIndex + (chunkIndex++)] = layerSize + firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = layerSize + firstVertex + 1;
-						chunkIndices[firstIndex + (chunkIndex++)] = layerSize + firstVertex + (chunkRow + 1);
-						chunkIndices[firstIndex + (chunkIndex++)] = layerSize + firstVertex + 1;
-						chunkIndices[firstIndex + (chunkIndex++)] = layerSize + firstVertex + (chunkRow + 1);
-						chunkIndices[firstIndex + (chunkIndex++)] = layerSize + firstVertex + (chunkRow + 1) + 1;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + rowSize + 1;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + 1;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + rowSize;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + rowSize + 1;
+						// TOP
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize + 1;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize + rowSize + 1;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize + rowSize + 1;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize + rowSize;
 						// FRONT
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + 1;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + 1 + layerSize + rowSize;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + 1 + layerSize;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + 1;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + 1 + rowSize;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + 1 + layerSize + rowSize;
 						// BACK
 						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize + rowSize;
 						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize + rowSize;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + rowSize;
 						// LEFT
 						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize + 1;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize;
 						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + 1;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize + 1;
 						// RIGHT
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + rowSize + layerSize;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + rowSize + layerSize + 1;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + rowSize;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + rowSize;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + rowSize + layerSize + 1;
+						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + rowSize + 1;
 
 						firstVertex++;
 					}
+					firstVertex++;
 				}
 			}
 			firstIndex += CHUNK_INDEX_COUNT;
@@ -196,6 +201,13 @@ void CChunkManager::draw( glm::mat4 projection, glm::mat4 view )
 	unsigned int chunkStart, chunkLength, chunksRendered;
 	int chunkIndex, chunkRow, chunkColumn;
 	glm::vec3 chunkOffset;
+
+	// use the chunk shader program
+	pShaderManager->getProgram( SHADERPROGRAM_CHUNK )->bind();
+	if( m_bUpdateScale ) {
+		glUniform1f( pShaderManager->getProgram( SHADERPROGRAM_CHUNK )->getUniform( "voxelScale" ), CHUNK_GRID_SIZE );
+		m_bUpdateScale = false;
+	}
 
 	chunkLength = CHUNK_VERTEX_COUNT;
 	chunksRendered = 0;
