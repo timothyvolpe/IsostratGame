@@ -1,0 +1,16 @@
+language "en"
+{
+	info
+	{
+		LANGUAGE_NAME "English"
+	}
+	fonts
+	{
+		DEFAULTFONT "verdana.ttf"
+	}
+
+	DEBUG_FRAMECOUNTER "FPS:"
+	DEBUG_TRIANGLECOUNT "Triangles:"
+	
+	DEBUG_LOCALIZATIONTEST "Je était analyse: à è ç œ ô"
+}
