@@ -172,6 +172,8 @@
     <ClCompile Include="source\input.cpp" />
     <ClCompile Include="source\main.cpp" />
     <ClCompile Include="source\shader\shaderbase.cpp" />
+    <ClCompile Include="source\ui\interface.cpp" />
+    <ClCompile Include="source\ui\localization.cpp" />
     <ClCompile Include="source\world\chunkmanager.cpp" />
     <ClCompile Include="source\world\world.cpp" />
   </ItemGroup>
@@ -186,6 +188,8 @@
     <ClInclude Include="include\input.h" />
     <ClInclude Include="include\platform.h" />
     <ClInclude Include="include\shader\shaderbase.h" />
+    <ClInclude Include="include\ui\interface.h" />
+    <ClInclude Include="include\ui\localization.h" />
     <ClInclude Include="include\world\chunkmanager.h" />
     <ClInclude Include="include\world\world.h" />
   </ItemGroup>
