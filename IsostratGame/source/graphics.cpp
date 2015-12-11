@@ -3,6 +3,8 @@
 #include <glm\ext.hpp>
 #pragma warning( default: 4996 )
 
+#include <sstream>
+
 #include "base.h"
 #include "def.h"
 #include "graphics.h"
@@ -78,6 +80,10 @@ bool CGraphics::initialize()
 	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
 	glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
 
+	//glEnable( GL_CULL_FACE );
+	glEnable( GL_DEPTH_TEST );
+	glDepthFunc( GL_LEQUAL );
+
 	// Load the shaders
 	m_pShaderManager = new CShaderManager();
 	if( !m_pShaderManager->initialize() )
@@ -142,7 +148,7 @@ void CGraphics::draw()
 {
 	glm::mat4 viewMatrix, modelMatrix;
 
-	glClear( GL_COLOR_BUFFER_BIT );
+	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
 	// Update the camera
 	viewMatrix = m_pCamera->update();
@@ -161,6 +167,11 @@ void CGraphics::draw()
 	glDrawArrays( GL_TRIANGLES, 0, 3 );*/
 
 	SDL_GL_SwapWindow( m_pSDLWindow );
+
+	// TEST: add FPS to window title
+	std::stringstream titleStream;
+	titleStream << WINDOW_TITLE_SHORT << " Frametime: " << CGame::instance().getFrameTime();
+	SDL_SetWindowTitle( m_pSDLWindow, titleStream.str().c_str() );
 }
 
 void CGraphics::calculateProjection( int width, int height, float fov, float zFar ) {
