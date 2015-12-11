@@ -56,7 +56,7 @@ bool CShaderManager::loadPrograms( ShaderProgramDescs programDescs )
 
 		// Create the program
 		pProgram = new CShaderProgram();
-		if( !pProgram->initializeProgram( (*it).name, pVert, pGeom, pFrag, (*it).uniformBlocks ) )
+		if( !pProgram->initializeProgram( (*it).name, pVert, pGeom, pFrag, (*it).uniformBlocks, (*it).uniformNames ) )
 			return false;
 		m_programObjects.push_back( pProgram );
 	}
@@ -95,10 +95,12 @@ bool CShaderManager::initialize()
 	// Shader objects to load
 	shaderList.push_back( std::pair<std::string, GLenum>( "simple", GL_VERTEX_SHADER ) );// 0
 	shaderList.push_back( std::pair<std::string, GLenum>( "simple", GL_FRAGMENT_SHADER ) ); // 1
+	shaderList.push_back( std::pair<std::string, GLenum>( "chunk", GL_VERTEX_SHADER ) ); // 2
 	enum {
 		NO_SHADER = -1,
 		SIMPLE_VERT = 0,
-		SIMPLE_FRAG
+		SIMPLE_FRAG = 1,
+		CHUNK_VERT = 2
 	};
 
 	// Load the shader objects
@@ -111,8 +113,15 @@ bool CShaderManager::initialize()
 
 	// Shader Program SIMPLE
 	UniformBlockList simple_uniformBlocks;
+	std::vector<std::string> simple_uniforms;
 	simple_uniformBlocks.push_back( std::pair<std::string, GLuint>( "GlobalMatrices", UNIFORMBLOCK_GLOBALMATRICES ) );
-	programDescList[SHADERPROGRAM_SIMPLE] = ShaderProgramDesc( L"SIMPLE", SIMPLE_VERT, NO_SHADER, SIMPLE_FRAG, simple_uniformBlocks );
+	programDescList[SHADERPROGRAM_SIMPLE] = ShaderProgramDesc( L"SIMPLE", SIMPLE_VERT, NO_SHADER, SIMPLE_FRAG, simple_uniformBlocks, simple_uniforms );
+	// Shader Program CHUNK
+	UniformBlockList chunk_uniformBlocks;
+	std::vector<std::string> chunk_uniforms;
+	chunk_uniformBlocks.push_back( std::pair<std::string, GLuint>( "GlobalMatrices", UNIFORMBLOCK_GLOBALMATRICES ) );
+	chunk_uniforms.push_back( "voxelScale" );
+	programDescList[SHADERPROGRAM_CHUNK] = ShaderProgramDesc( L"CHUNK", CHUNK_VERT, NO_SHADER, SIMPLE_FRAG, chunk_uniformBlocks, chunk_uniforms );
 
 	if( !this->loadPrograms( programDescList ) )
 		return false;
@@ -327,7 +336,7 @@ CShaderProgram::CShaderProgram() {
 CShaderProgram::~CShaderProgram() {
 }
 
-bool CShaderProgram::initializeProgram( std::wstring name, CShaderObject *pVertexShader, CShaderObject *pGeometryShader, CShaderObject *pFragmentShader, UniformBlockList uniformBlocks )
+bool CShaderProgram::initializeProgram( std::wstring name, CShaderObject *pVertexShader, CShaderObject *pGeometryShader, CShaderObject *pFragmentShader, UniformBlockList uniformBlocks, std::vector<std::string> uniformNames )
 {
 	GLint linkStatus, logLength;
 
@@ -405,6 +414,19 @@ bool CShaderProgram::initializeProgram( std::wstring name, CShaderObject *pVerte
 		// Add it to the list
 		m_uniformBlocks.insert( std::pair<GLuint, GLuint>( index, (*it).second ) );
 	}
+	// Find uniforms
+	for( auto it = uniformNames.begin(); it != uniformNames.end(); it++ )
+	{
+		unsigned int location;
+
+		location = glGetUniformLocation( m_programId, (*it).c_str() );
+		if( !location ) {
+			PrintWarn( L"Could not find uniform \"%hs\", ignoring!\n", (*it).c_str() );
+			continue;
+		}
+		// Save the location
+		m_uniforms.insert( std::pair<std::string, GLuint>( (*it), location ) );
+	}
 
 	// Detach the shaders
 	if( pVertexShader )
@@ -423,9 +445,20 @@ void CShaderProgram::destroy()
 		glDeleteProgram( m_programId );
 		m_programId = 0;
 	}
+	m_uniformBlocks.clear();
+	m_uniforms.clear();
 }
 
 void CShaderProgram::bind() {
 	// TODO: Add a way to remove redundant calls
 	glUseProgram( m_programId );
+}
+
+GLuint CShaderProgram::getUniform( std::string name ) {
+	if( m_uniforms.find( name ) != m_uniforms.end() )
+		return m_uniforms[name];
+	else {
+		PrintWarn( L"Could not find uniform \"%hs\"\n", name.c_str() );
+		return 0;
+	}
 }

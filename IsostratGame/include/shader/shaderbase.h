@@ -15,9 +15,11 @@ enum : unsigned char
 	PROGRAM_USEGEOMETRY		= 1 << 2
 };
 
+// Add new shader programs here
 enum : unsigned char
 {
 	SHADERPROGRAM_SIMPLE = 0,
+	SHADERPROGRAM_CHUNK = 1,
 	SHADERPROGRAM_COUNT
 };
 
@@ -53,8 +55,9 @@ private:
 		std::wstring name;
 		char vertexShader, geometryShader, fragmentShader;
 		UniformBlockList uniformBlocks;
+		std::vector<std::string> uniformNames;
 		ShaderProgramDesc() {};
-		ShaderProgramDesc( std::wstring n, char vert, char geom, char frag, UniformBlockList ub ) : name( n ), vertexShader( vert ), geometryShader( geom ), fragmentShader( frag ), uniformBlocks( ub ) {}
+		ShaderProgramDesc( std::wstring n, char vert, char geom, char frag, UniformBlockList ub, std::vector<std::string> un ) : name( n ), vertexShader( vert ), geometryShader( geom ), fragmentShader( frag ), uniformBlocks( ub ), uniformNames( un ) {}
 	};
 	typedef std::vector<ShaderProgramDesc> ShaderProgramDescs;
 	
@@ -96,7 +99,7 @@ public:
 	CShaderObject();
 	~CShaderObject();
 
-	bool initializeShader( std::string file, GLenum type);
+	bool initializeShader( std::string file, GLenum type );
 	void destroy();
 
 	GLuint getShaderId();
@@ -110,18 +113,22 @@ class CShaderProgram
 {
 private:
 	typedef std::map<GLuint, GLuint> UniformBlockIndices;
+	typedef std::map<std::string, GLuint> UniformList;
 
 	std::wstring m_name;
 
 	GLuint m_programId;
 
 	UniformBlockIndices m_uniformBlocks;
+	UniformList m_uniforms;
 public:
 	CShaderProgram();
 	~CShaderProgram();
 
-	bool initializeProgram( std::wstring name, CShaderObject *pVertexShader, CShaderObject *pGeometryShader, CShaderObject *pFragmentShader, UniformBlockList uniformBlocks );
+	bool initializeProgram( std::wstring name, CShaderObject *pVertexShader, CShaderObject *pGeometryShader, CShaderObject *pFragmentShader, UniformBlockList uniformBlocks, std::vector<std::string> uniformNames );
 	void destroy();
 
 	void bind();
+
+	GLuint getUniform( std::string name );
 };
