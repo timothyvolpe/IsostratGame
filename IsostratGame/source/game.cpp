@@ -171,6 +171,9 @@ CConfigLoader* CGame::getConfigLoader() {
 CInput* CGame::getInput() {
 	return m_pInput;
 }
+CGraphics* CGame::getGraphics() {
+	return m_pGraphics;
+}
 
 double CGame::getFrameTime() {
 	return m_frameTime;

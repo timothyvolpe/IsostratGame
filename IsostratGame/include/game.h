@@ -43,6 +43,7 @@ public:
 
 	void displayMessagebox( std::wstring message );
 
+	CGraphics* getGraphics();
 	CConsole* getConsole();
 	CConfigLoader* getConfigLoader();
 	CInput* getInput();

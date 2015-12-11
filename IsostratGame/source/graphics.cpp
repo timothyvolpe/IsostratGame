@@ -9,17 +9,16 @@
 #include "config.h"
 #include "shader\shaderbase.h"
 #include "camera.h"
+#include "world\world.h"
 
 CGraphics::CGraphics() {
 	m_pSDLWindow = NULL;
 	m_GLContext = 0;
 
 	m_pShaderManager = NULL;
+	m_pWorld = NULL;
 
 	m_pCamera = NULL;
-
-	m_testVBO = 0;
-	m_testVAO = 0;
 
 	m_projectionMatrix = glm::mat4( 1.0f );
 }
@@ -77,6 +76,7 @@ bool CGraphics::initialize()
 
 	// OpenGL attributes
 	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
+	glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
 
 	// Load the shaders
 	m_pShaderManager = new CShaderManager();
@@ -88,7 +88,14 @@ bool CGraphics::initialize()
 	if( !m_pCamera->initialize() )
 		return false;
 
-	// Create the test VAO
+	// Create the world
+	m_pWorld = new CWorld();
+	if( !m_pWorld->initialize() )
+		return false;
+	// Load the world
+	m_pWorld->loadWorld();
+
+	/*// Create the test VAO
 	glGenVertexArrays( 1, &m_testVAO );
 	glBindVertexArray( m_testVAO );
 	// Create the test VBO
@@ -96,19 +103,28 @@ bool CGraphics::initialize()
 	glBindBuffer( GL_ARRAY_BUFFER, m_testVBO );
 	// Fill with basic vertex info
 	float basicTriangle[] = {
-		-0.25f, 0.25f, 0.0f,
-		0.25f, -0.25f, 0.0f,
-		-0.25f, -0.25f, 0.0f
+		-0.25f, 0.25f, 0.0f, // v0
+		1.0f, 0.0f, 0.0f, // c0
+		0.25f, -0.25f, 0.0f, // v1
+		1.0f, 0.0f, 0.0f, // c1
+		-0.25f, -0.25f, 0.0f, // v2
+		1.0f, 0.0f, 0.0f //c2 
 	};
 	// Store the vertices
 	glBufferData( GL_ARRAY_BUFFER, sizeof( basicTriangle ), &basicTriangle[0], GL_STATIC_DRAW );
 	glEnableVertexAttribArray( 0 );
-	glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, 0, 0 );
+	glEnableVertexAttribArray( 1 );
+	glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, sizeof(float)*6, 0 );
+	glVertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, sizeof(float)*6, (GLvoid*)(sizeof(float)*3) );*/
 
 	return true;
 }
 void CGraphics::destroy()
 {
+	// Destroy the world
+	if (m_pWorld )
+		m_pWorld->destroyWorld();
+	DESTROY_DELETE( m_pWorld );
 	// Destory camera
 	DESTROY_DELETE( m_pCamera );
 	// Destroy the shaders
@@ -134,14 +150,15 @@ void CGraphics::draw()
 	// Use simple shader
 	m_pShaderManager->getProgram( SHADERPROGRAM_SIMPLE )->bind();
 
-	// Render Test
-
-	// Send matrices
-	m_pShaderManager->m_ubGlobalMatrices.mvp = m_projectionMatrix * viewMatrix * modelMatrix;
-	m_pShaderManager->updateUniformBlock( UNIFORMBLOCK_GLOBALMATRICES );
+	// Draw the world
+	m_pWorld->draw( m_projectionMatrix, viewMatrix );
 	
+	// Render Test
+	// Send matrices
+	/*m_pShaderManager->m_ubGlobalMatrices.mvp = m_projectionMatrix * viewMatrix * modelMatrix;
+	m_pShaderManager->updateUniformBlock( UNIFORMBLOCK_GLOBALMATRICES );
 	glBindVertexArray( m_testVAO );
-	glDrawArrays( GL_TRIANGLES, 0, 3 );
+	glDrawArrays( GL_TRIANGLES, 0, 3 );*/
 
 	SDL_GL_SwapWindow( m_pSDLWindow );
 }
@@ -152,4 +169,11 @@ void CGraphics::calculateProjection( int width, int height, float fov, float zFa
 
 glm::mat4 CGraphics::getProjectionMatrix() {
 	return m_projectionMatrix;
+}
+
+CShaderManager* CGraphics::getShaderManager() {
+	return m_pShaderManager;
+}
+CWorld* CGraphics::getWorld() {
+	return m_pWorld;
 }

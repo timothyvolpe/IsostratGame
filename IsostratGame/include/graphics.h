@@ -6,6 +6,7 @@
 
 class CShaderManager;
 class CCamera;
+class CWorld;
 
 class CGraphics
 {
@@ -14,13 +15,11 @@ private:
 	SDL_GLContext m_GLContext;
 
 	CShaderManager *m_pShaderManager;
+	CWorld *m_pWorld;
 	
 	CCamera *m_pCamera;
 
 	glm::mat4 m_projectionMatrix;
-
-	GLuint m_testVAO;
-	GLuint m_testVBO;
 public:
 	CGraphics();
 	~CGraphics();
@@ -33,4 +32,7 @@ public:
 	void calculateProjection( int width, int height, float fov, float zFar );
 
 	glm::mat4 getProjectionMatrix();
+
+	CShaderManager* getShaderManager();
+	CWorld* getWorld();
 };
