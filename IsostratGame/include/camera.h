@@ -24,4 +24,6 @@ public:
 	void destroy();
 
 	glm::mat4 update();
+
+	glm::mat4 getViewMatrix();
 };

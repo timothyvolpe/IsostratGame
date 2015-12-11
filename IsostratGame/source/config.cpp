@@ -29,6 +29,8 @@ bool CConfigLoader::saveConfig()
 	m_xmlTree.put( "GameConfig.Keybinds.WalkBackward", m_keybinds[KEYBIND_WALK_BACKWARD] );
 	m_xmlTree.put( "GameConfig.Keybinds.StrafeLeft", m_keybinds[KEYBIND_STRAFE_LEFT] );
 	m_xmlTree.put( "GameConfig.Keybinds.StrafeRight", m_keybinds[KEYBIND_STRAFE_RIGHT] );
+	m_xmlTree.put( "GameConfig.Keybinds.Run", m_keybinds[KEYBIND_RUN] );
+	m_xmlTree.put( "GameConfig.Keybinds.Crouch", m_keybinds[KEYBIND_WALK] );
 
 	// Make sure the folder exists
 	configPath = boost::filesystem::current_path();
@@ -78,6 +80,8 @@ bool CConfigLoader::initializeAndLoad()
 	m_keybinds[KEYBIND_WALK_BACKWARD] = m_xmlTree.get( "GameConfig.Keybinds.WalkBackward", (unsigned short)SDL_SCANCODE_S );
 	m_keybinds[KEYBIND_STRAFE_LEFT] = m_xmlTree.get( "GameConfig.Keybinds.StrafeLeft", (unsigned short)SDL_SCANCODE_A );
 	m_keybinds[KEYBIND_STRAFE_RIGHT] = m_xmlTree.get( "GameConfig.Keybinds.StrafeRight", (unsigned short)SDL_SCANCODE_D );
+	m_keybinds[KEYBIND_RUN] = m_xmlTree.get( "GameConfig.Keybinds.Run", (unsigned short)SDL_SCANCODE_LSHIFT );
+	m_keybinds[KEYBIND_WALK] = m_xmlTree.get( "GameConfig.Keybinds.Crouch", (unsigned short)SDL_SCANCODE_LCTRL );
 
 	return true;
 }

@@ -96,3 +96,7 @@ glm::mat4 CCamera::update()
 
 	return m_viewMatrix;
 }
+
+glm::mat4 CCamera::getViewMatrix() {
+	return m_viewMatrix;
+}
