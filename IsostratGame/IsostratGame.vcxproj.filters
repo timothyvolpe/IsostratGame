@@ -19,6 +19,12 @@
     <Filter Include="Source Files\shader">
       <UniqueIdentifier>{a071b3fb-b994-4186-91c8-c88932aec060}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\world">
+      <UniqueIdentifier>{f129538b-e188-4d50-b8c6-85453e761cb7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\world">
+      <UniqueIdentifier>{d32e660c-f86e-43bd-bd00-d94a93c648e9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\main.cpp">
@@ -44,6 +50,12 @@
     </ClCompile>
     <ClCompile Include="source\camera.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\world\chunkmanager.cpp">
+      <Filter>Source Files\world</Filter>
+    </ClCompile>
+    <ClCompile Include="source\world\world.cpp">
+      <Filter>Source Files\world</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -76,6 +88,12 @@
     </ClInclude>
     <ClInclude Include="include\camera.h">
       <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\world\chunkmanager.h">
+      <Filter>Header Files\world</Filter>
+    </ClInclude>
+    <ClInclude Include="include\world\world.h">
+      <Filter>Header Files\world</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
