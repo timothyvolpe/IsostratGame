@@ -10,6 +10,7 @@
 #define GL_VERSION_MAJOR 3
 #define GL_VERSION_MINOR 3
 
-#define FILESYSTEM_SHADERDIR L"data\\shaders"
 #define FILESYSTEM_LOGDIR L"logs"
+#define FILESYSTEM_SHADERDIR L"data\\shaders"
 #define FILESYSTEM_CONFIGDIR L"data\\config"
+#define FILESYSTEM_LANGDIR L"data\\lang"

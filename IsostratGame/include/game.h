@@ -9,6 +9,7 @@ class CConsole;
 class CGraphics;
 class CConfigLoader;
 class CInput;
+class CInterfaceManager;
 
 class CGame
 {
@@ -17,6 +18,8 @@ private:
 	CGraphics *m_pGraphics;
 	CConfigLoader *m_pConfigLoader;
 	CInput *m_pInput;
+
+	CInterfaceManager *m_pInterfaceManager;
 
 	bool m_bRunning;
 	bool m_bMouseLocked;

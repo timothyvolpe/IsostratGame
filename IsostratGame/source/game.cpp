@@ -5,6 +5,7 @@
 #include "graphics.h"
 #include "config.h"
 #include "input.h"
+#include "ui\interface.h"
 
 #include <iostream>
 #include <sstream>
@@ -16,6 +17,7 @@ CGame::CGame()
 	m_pGraphics = NULL;
 	m_pConfigLoader = NULL;
 	m_pInput = NULL;
+	m_pInterfaceManager = NULL;
 	m_bRunning = false;
 	m_bMouseLocked = false;
 	m_frameTime = 0.0;
@@ -71,6 +73,11 @@ bool CGame::start()
 	// Create the input handler
 	m_pInput = new CInput();
 
+	// Load the interface manager
+	m_pInterfaceManager = new CInterfaceManager();
+	if( !m_pInterfaceManager->initialize() )
+		return false;
+
 	// Enter the game loop
 	if( !this->gameLoop() )
 		return false;
@@ -80,6 +87,8 @@ bool CGame::start()
 
 void CGame::destroy()
 {
+	// Destroy interfaces
+	DESTROY_DELETE( m_pInterfaceManager );
 	// Destroy input
 	SAFE_DELETE( m_pInput );
 	// Destroy graphics
