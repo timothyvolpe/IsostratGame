@@ -69,6 +69,9 @@
     <ClCompile Include="source\ui\interface.cpp">
       <Filter>Source Files\ui</Filter>
     </ClCompile>
+    <ClCompile Include="source\ui\font.cpp">
+      <Filter>Source Files\ui</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\base.h">
@@ -111,6 +114,9 @@
       <Filter>Header Files\ui</Filter>
     </ClInclude>
     <ClInclude Include="include\ui\interface.h">
+      <Filter>Header Files\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ui\font.h">
       <Filter>Header Files\ui</Filter>
     </ClInclude>
   </ItemGroup>
