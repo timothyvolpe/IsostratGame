@@ -19,6 +19,7 @@ void CLocalization::destroy() {
 bool CLocalization::loadLanguage( unsigned char language )
 {
 	boost::filesystem::path langPath;
+	boost::property_tree::wptree fontTree;
 
 	PrintInfo( L"Loading language (%i)...\n", language );
 
@@ -63,6 +64,55 @@ bool CLocalization::loadLanguage( unsigned char language )
 	// Get some info about the language
 	m_languageName = m_langTree.get( L"language.info.LANGUAGE_NAME", L"unnamed" );
 	PrintInfo( L"Loaded language %s\n", m_languageName.c_str() );
+	// Get the font names
+	try {
+		fontTree = m_langTree.get_child( L"language.fonts" );
+		m_fontNameList.clear();
+		for( const auto &kv : fontTree ) {
+			m_fontNameList.insert( std::pair<std::wstring, std::wstring>( kv.first.data(), kv.second.data() ) );
+		}
+	}
+	catch( boost::property_tree::ptree_bad_path &e ) {
+		PrintInfo( L"Did not find any font info in the language file (%hs)\n", e.what() );
+		return false;
+	}
 
 	return true;
+}
+
+FontNameList CLocalization::getFontNameList() {
+	return m_fontNameList;
+}
+std::unordered_set<wchar_t> CLocalization::getCacheChars() // Determine what characters we need to cache
+{
+	std::unordered_set<wchar_t> cacheChars;
+	std::wstring infoCache;
+	boost::property_tree::wptree stringTree;
+	wchar_t currentChar;
+
+	// First, check LANGUAGE_CACHE_CHARS
+	infoCache = m_langTree.get( L"language.info.LANGUAGE_CACHE_CHARS", L"" );
+	for( unsigned int i = 0; i < infoCache.length(); i++ ) {
+		cacheChars.insert( infoCache[i] );
+	}
+
+	// Look through all the strings and cache new characters
+	try
+	{
+		stringTree = m_langTree.get_child( L"language.strings" );
+		for( const auto &kv : stringTree ) {
+			for( unsigned int i = 0; i < kv.second.data().size(); i++ )
+			{
+				currentChar = kv.second.data()[i];
+				if( cacheChars.find( currentChar ) == cacheChars.end() )
+					cacheChars.insert( currentChar );
+			}
+		}
+	}
+	catch( boost::property_tree::ptree_bad_path &e ) {
+		PrintWarn( L"Error parsing language file (%hs)\n", e.what() );
+		return cacheChars;
+	}
+
+	return cacheChars;
 }

@@ -19,6 +19,13 @@
 // OpenGL
 #pragma comment( lib, "opengl32.lib" )
 
+// FreeType
+#ifdef _DEBUG
+#pragma comment( lib, "freetype253MT_D.lib" )
+#else
+#pragma comment( lib, "freetype253MT.lib" )
+#endif
+
 int CALLBACK WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow )
 {
 	// Start the game
