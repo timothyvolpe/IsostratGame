@@ -12,6 +12,7 @@
 #include "shader\shaderbase.h"
 #include "camera.h"
 #include "world\world.h"
+#include "ui\interface.h"
 
 CGraphics::CGraphics() {
 	m_pSDLWindow = NULL;
@@ -23,6 +24,7 @@ CGraphics::CGraphics() {
 	m_pCamera = NULL;
 
 	m_projectionMatrix = glm::mat4( 1.0f );
+	m_orthoMatrix = glm::mat4( 1.0f );
 }
 CGraphics::~CGraphics() {
 }
@@ -78,7 +80,7 @@ bool CGraphics::initialize()
 
 	// OpenGL attributes
 	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
-	glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+	glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 
 	//glEnable( GL_CULL_FACE );
 	glEnable( GL_DEPTH_TEST );
@@ -100,28 +102,6 @@ bool CGraphics::initialize()
 		return false;
 	// Load the world
 	m_pWorld->loadWorld();
-
-	/*// Create the test VAO
-	glGenVertexArrays( 1, &m_testVAO );
-	glBindVertexArray( m_testVAO );
-	// Create the test VBO
-	glGenBuffers( 1, &m_testVBO );
-	glBindBuffer( GL_ARRAY_BUFFER, m_testVBO );
-	// Fill with basic vertex info
-	float basicTriangle[] = {
-		-0.25f, 0.25f, 0.0f, // v0
-		1.0f, 0.0f, 0.0f, // c0
-		0.25f, -0.25f, 0.0f, // v1
-		1.0f, 0.0f, 0.0f, // c1
-		-0.25f, -0.25f, 0.0f, // v2
-		1.0f, 0.0f, 0.0f //c2 
-	};
-	// Store the vertices
-	glBufferData( GL_ARRAY_BUFFER, sizeof( basicTriangle ), &basicTriangle[0], GL_STATIC_DRAW );
-	glEnableVertexAttribArray( 0 );
-	glEnableVertexAttribArray( 1 );
-	glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, sizeof(float)*6, 0 );
-	glVertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, sizeof(float)*6, (GLvoid*)(sizeof(float)*3) );*/
 
 	return true;
 }
@@ -146,25 +126,18 @@ void CGraphics::destroy()
 
 void CGraphics::draw()
 {
-	glm::mat4 viewMatrix, modelMatrix;
+	glm::mat4 viewMatrix, ortherViewMatrix, modelMatrix;
 
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
 	// Update the camera
 	viewMatrix = m_pCamera->update();
-
-	// Use simple shader
-	m_pShaderManager->getProgram( SHADERPROGRAM_SIMPLE )->bind();
+	ortherViewMatrix = glm::lookAt( glm::vec3( 0.0f, 0.0f, 1.0f ), glm::vec3( 0.0f, 0.0f, 0.0f ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
 
 	// Draw the world
 	m_pWorld->draw( m_projectionMatrix, viewMatrix );
-	
-	// Render Test
-	// Send matrices
-	/*m_pShaderManager->m_ubGlobalMatrices.mvp = m_projectionMatrix * viewMatrix * modelMatrix;
-	m_pShaderManager->updateUniformBlock( UNIFORMBLOCK_GLOBALMATRICES );
-	glBindVertexArray( m_testVAO );
-	glDrawArrays( GL_TRIANGLES, 0, 3 );*/
+	// Draw the interface
+	CGame::instance().getInterfaceManager()->draw( m_orthoMatrix, ortherViewMatrix );
 
 	SDL_GL_SwapWindow( m_pSDLWindow );
 
@@ -176,6 +149,7 @@ void CGraphics::draw()
 
 void CGraphics::calculateProjection( int width, int height, float fov, float zFar ) {
 	m_projectionMatrix = glm::perspective( 45.0f, (float)width / (float)height, 0.01f, 100.0f );
+	m_orthoMatrix = glm::ortho( 0.0f, (float)width, 0.0f, (float)height, 0.1f, 1.0f );
 }
 
 glm::mat4 CGraphics::getProjectionMatrix() {

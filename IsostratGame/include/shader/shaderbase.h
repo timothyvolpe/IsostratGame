@@ -18,8 +18,9 @@ enum : unsigned char
 // Add new shader programs here
 enum : unsigned char
 {
-	SHADERPROGRAM_SIMPLE = 0,
-	SHADERPROGRAM_CHUNK = 1,
+	SHADERPROGRAM_SIMPLE		= 0,
+	SHADERPROGRAM_CHUNK			= 1,
+	SHADERPROGRAM_INTERFACE		= 2,
 	SHADERPROGRAM_COUNT
 };
 

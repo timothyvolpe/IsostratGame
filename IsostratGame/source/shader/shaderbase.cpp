@@ -96,11 +96,15 @@ bool CShaderManager::initialize()
 	shaderList.push_back( std::pair<std::string, GLenum>( "simple", GL_VERTEX_SHADER ) );// 0
 	shaderList.push_back( std::pair<std::string, GLenum>( "simple", GL_FRAGMENT_SHADER ) ); // 1
 	shaderList.push_back( std::pair<std::string, GLenum>( "chunk", GL_VERTEX_SHADER ) ); // 2
+	shaderList.push_back( std::pair<std::string, GLenum>( "interface", GL_VERTEX_SHADER ) ); // 3
+	shaderList.push_back( std::pair<std::string, GLenum>( "interface", GL_FRAGMENT_SHADER ) ); // 5
 	enum {
-		NO_SHADER = -1,
-		SIMPLE_VERT = 0,
-		SIMPLE_FRAG = 1,
-		CHUNK_VERT = 2
+		NO_SHADER			= -1,
+		SIMPLE_VERT			= 0,
+		SIMPLE_FRAG			= 1,
+		CHUNK_VERT			= 2,
+		INTERFACE_VERT		= 3,
+		INTERFACE_FRAG		= 4
 	};
 
 	// Load the shader objects
@@ -122,6 +126,12 @@ bool CShaderManager::initialize()
 	chunk_uniformBlocks.push_back( std::pair<std::string, GLuint>( "GlobalMatrices", UNIFORMBLOCK_GLOBALMATRICES ) );
 	chunk_uniforms.push_back( "voxelScale" );
 	programDescList[SHADERPROGRAM_CHUNK] = ShaderProgramDesc( L"CHUNK", CHUNK_VERT, NO_SHADER, SIMPLE_FRAG, chunk_uniformBlocks, chunk_uniforms );
+	// Shader Program INTERFACE
+	UniformBlockList interface_uniformBlocks;
+	std::vector<std::string> interface_uniforms;
+	interface_uniforms.push_back( "windowDimensions" );
+	interface_uniformBlocks.push_back( std::pair<std::string, GLuint>( "GlobalMatrices", UNIFORMBLOCK_GLOBALMATRICES ) );
+	programDescList[SHADERPROGRAM_INTERFACE] = ShaderProgramDesc( L"INTERFACE", INTERFACE_VERT, NO_SHADER, INTERFACE_FRAG, interface_uniformBlocks, interface_uniforms );
 
 	if( !this->loadPrograms( programDescList ) )
 		return false;

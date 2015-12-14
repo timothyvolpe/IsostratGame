@@ -50,6 +50,7 @@ public:
 	CConsole* getConsole();
 	CConfigLoader* getConfigLoader();
 	CInput* getInput();
+	CInterfaceManager* getInterfaceManager();
 
 	double getFrameTime();
 };

@@ -77,6 +77,7 @@ bool CGame::start()
 	m_pInterfaceManager = new CInterfaceManager();
 	if( !m_pInterfaceManager->initialize() )
 		return false;
+	m_pInterfaceManager->setDimensions( m_pConfigLoader->getResolutionX(), m_pConfigLoader->getResolutionY() );
 
 	// Enter the game loop
 	if( !this->gameLoop() )
@@ -182,6 +183,9 @@ CInput* CGame::getInput() {
 }
 CGraphics* CGame::getGraphics() {
 	return m_pGraphics;
+}
+CInterfaceManager* CGame::getInterfaceManager() {
+	return m_pInterfaceManager;
 }
 
 double CGame::getFrameTime() {

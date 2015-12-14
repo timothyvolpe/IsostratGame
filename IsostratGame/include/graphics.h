@@ -19,7 +19,7 @@ private:
 	
 	CCamera *m_pCamera;
 
-	glm::mat4 m_projectionMatrix;
+	glm::mat4 m_projectionMatrix, m_orthoMatrix;
 public:
 	CGraphics();
 	~CGraphics();
