@@ -174,6 +174,7 @@
     <ClCompile Include="source\shader\shaderbase.cpp" />
     <ClCompile Include="source\ui\font.cpp" />
     <ClCompile Include="source\ui\interface.cpp" />
+    <ClCompile Include="source\ui\interface_screen.cpp" />
     <ClCompile Include="source\ui\localization.cpp" />
     <ClCompile Include="source\world\chunkmanager.cpp" />
     <ClCompile Include="source\world\world.cpp" />
@@ -192,6 +193,7 @@
     <ClInclude Include="include\ui\font.h" />
     <ClInclude Include="include\ui\interface.h" />
     <ClInclude Include="include\ui\localization.h" />
+    <ClInclude Include="include\ui\interface_screen.h" />
     <ClInclude Include="include\world\chunkmanager.h" />
     <ClInclude Include="include\world\world.h" />
   </ItemGroup>

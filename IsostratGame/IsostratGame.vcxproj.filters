@@ -31,6 +31,12 @@
     <Filter Include="Source Files\ui">
       <UniqueIdentifier>{09ff1caf-84f6-45d3-807b-30511d1e2bfe}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\ui\controls">
+      <UniqueIdentifier>{0a886f03-b0b0-4374-81cb-bd1b8d86aa84}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\ui\controls">
+      <UniqueIdentifier>{99891d80-aaca-4566-80cf-2130b3c2362f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\main.cpp">
@@ -71,6 +77,9 @@
     </ClCompile>
     <ClCompile Include="source\ui\font.cpp">
       <Filter>Source Files\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="source\ui\interface_screen.cpp">
+      <Filter>Source Files\ui\controls</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -118,6 +127,9 @@
     </ClInclude>
     <ClInclude Include="include\ui\font.h">
       <Filter>Header Files\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ui\interface_screen.h">
+      <Filter>Header Files\ui\controls</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
