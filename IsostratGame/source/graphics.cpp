@@ -82,9 +82,11 @@ bool CGraphics::initialize()
 	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
 	glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 
-	//glEnable( GL_CULL_FACE );
+	glEnable( GL_CULL_FACE );
 	glEnable( GL_DEPTH_TEST );
 	glDepthFunc( GL_LEQUAL );
+	glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+	glEnable( GL_BLEND );
 
 	// Load the shaders
 	m_pShaderManager = new CShaderManager();
@@ -149,7 +151,7 @@ void CGraphics::draw()
 
 void CGraphics::calculateProjection( int width, int height, float fov, float zFar ) {
 	m_projectionMatrix = glm::perspective( 45.0f, (float)width / (float)height, 0.01f, 100.0f );
-	m_orthoMatrix = glm::ortho( 0.0f, (float)width, 0.0f, (float)height, 0.1f, 1.0f );
+	m_orthoMatrix = glm::ortho( 0.0f, (float)width, 0.0f, (float)height, 0.1f, LAYER_SIZE*255 );
 }
 
 glm::mat4 CGraphics::getProjectionMatrix() {

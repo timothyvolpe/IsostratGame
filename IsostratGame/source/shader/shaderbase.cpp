@@ -129,7 +129,8 @@ bool CShaderManager::initialize()
 	// Shader Program INTERFACE
 	UniformBlockList interface_uniformBlocks;
 	std::vector<std::string> interface_uniforms;
-	interface_uniforms.push_back( "windowDimensions" );
+	interface_uniforms.push_back( "textureCoords" );
+	interface_uniforms.push_back( "textureSampler" );
 	interface_uniformBlocks.push_back( std::pair<std::string, GLuint>( "GlobalMatrices", UNIFORMBLOCK_GLOBALMATRICES ) );
 	programDescList[SHADERPROGRAM_INTERFACE] = ShaderProgramDesc( L"INTERFACE", INTERFACE_VERT, NO_SHADER, INTERFACE_FRAG, interface_uniformBlocks, interface_uniforms );
 

@@ -79,6 +79,13 @@ void CFontManager::unloadFonts()
 	}
 }
 
+CFont* CFontManager::getFont( std::wstring fontIdentifier ) {
+	if( m_fontList.find( fontIdentifier ) != m_fontList.end() )
+		return m_fontList[fontIdentifier];
+	else
+		return NULL;
+}
+
 FT_Library CFontManager::getFreetype() {
 	return m_hFreeType;
 }
@@ -90,6 +97,7 @@ FT_Library CFontManager::getFreetype() {
 CFont::CFont() {
 	m_fontFace = NULL;
 	m_fontName = L"";
+	m_textureId = 0;
 }
 CFont::~CFont() {
 }
@@ -98,6 +106,7 @@ bool CFont::initializeFont( FT_Library hFreeType, std::wstring fontName, std::un
 {
 	FT_Error ftError;
 	boost::filesystem::path fontPath;
+	FT_Long faceFlags;
 
 	m_fontName = fontName;
 
@@ -107,21 +116,84 @@ bool CFont::initializeFont( FT_Library hFreeType, std::wstring fontName, std::un
 	// Attempt to load the font
 	ftError = FT_New_Face( hFreeType, fontPath.string().c_str(), 0, &m_fontFace );
 	if( ftError ) {
-		PrintWarn( L"Failed to load font \"%s\" (%i)\n", fontName.c_str(), ftError );
+		PrintWarn( L"Failed to load font \"%s\" (open font, %i)\n", fontName.c_str(), ftError );
 		return false;
 	}
 
 	// Cache the needed glyphs
 	PrintInfo( L"Caching font \"%s\"...\n", fontName.c_str() );
 
-	// TODO: Load all the cached glyphs
+	// Check the flags
+	faceFlags = m_fontFace->face_flags;
+	if( faceFlags & FT_FACE_FLAG_VERTICAL ) {
+		PrintWarn( L"Failed to load font \"%s\" because vertical fonts are not supported\n", fontName.c_str() );
+		FT_Done_Face( m_fontFace );
+		m_fontFace = NULL;
+		return false;
+	}
+
+	// Set the face size
+	ftError = FT_Set_Char_Size( m_fontFace, 0, 16 * 64, 300, 300 );
+	if( ftError ) {
+		PrintWarn( L"Failed to load font \"%s\" (font size, %i)\n", fontName.c_str(), ftError );
+		FT_Done_Face( m_fontFace );
+		m_fontFace = NULL;
+		return false;
+	}
+
+	// Create the texture
+	glGenTextures( 1, &m_textureId );
+	glBindTexture( GL_TEXTURE_2D, m_textureId );
+	// Texture parameters
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+
+	// Load each glyph
+	for( std::unordered_set<wchar_t>::iterator it = cacheChars.begin(); it != cacheChars.end(); it++ )
+	{
+		FT_UInt glyphIndex;
+		FT_GlyphSlot glyph;
+		
+		// Get the index
+		glyphIndex = FT_Get_Char_Index( m_fontFace, (*it) );
+		// Load and render the glyph
+		ftError = FT_Load_Glyph( m_fontFace, glyphIndex, FT_LOAD_RENDER | FT_LOAD_MONOCHROME );
+		if( ftError ) {
+			PrintWarn( L"Failed to load font \"%s\" (load glyph, %i)\n", fontName.c_str(), ftError );
+			FT_Done_Face( m_fontFace );
+			m_fontFace = NULL;
+			return false;
+		}
+
+		// Add it to the texture map
+		glyph = m_fontFace->glyph;
+
+		int height = glyph->bitmap.rows;
+		int width = glyph->bitmap.width;
+
+		// Add it to the texture
+		glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
+		glTexImage2D( GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, glyph->bitmap.buffer );
+
+		break;
+	}
 
 	return false;
 }
 void CFont::destroy() {
+	if( m_textureId ) {
+		glDeleteTextures( 1, &m_textureId );
+		m_textureId = 0;
+	}
 	if( m_fontFace ) {
 		FT_Done_Face( m_fontFace );
 		m_fontFace = NULL;
 	}
 	m_fontName = L"deleted";
+}
+
+GLuint CFont::getTextureId() {
+	return m_textureId;
 }

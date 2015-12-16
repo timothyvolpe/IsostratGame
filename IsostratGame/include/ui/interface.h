@@ -3,14 +3,20 @@
 #include <glm\glm.hpp>
 #include <gl\glew.h>
 
+#include <vector>
+
+#define LAYER_SIZE 0.1f
+
 class CFontManager;
 class CLocalization;
 class CInterfaceBase;
+class CInterfaceRenderable;
 
 #pragma pack(push, 1)
 typedef struct
 {
 	glm::vec2 relpos;
+	glm::vec2 tex;
 } InterfaceVertex;
 #pragma pack(pop, 1)
 
@@ -21,13 +27,16 @@ typedef struct
 class CInterfaceManager
 {
 private:
+	typedef std::vector<CInterfaceBase*> InterfaceList;
+	typedef std::vector<CInterfaceRenderable*> InterfaceRenderableList;
+
 	CFontManager *m_pFontManager;
 	CLocalization *m_pLocalization;
 
-	CInterfaceBase *m_pTestScreen;
-
 	int m_width, m_height;
-	bool m_bUpdateDim;
+
+	std::vector<CInterfaceBase*> m_interfaceList;
+	std::vector<CInterfaceRenderable*> m_interfaceRenderableList; // everything in this list is also in the interfacebase one
 
 	GLuint m_interfaceVAO;
 	GLuint m_interfaceVBO;
@@ -45,6 +54,28 @@ public:
 	void setDimensions( int width, int height );
 	CFontManager* getFontManager();
 	CLocalization* getLocalization();
+
+	// Creates an interface object
+	template<class T>
+	T* createInterfaceObject()
+	{
+		T* pObject = new T();
+		if( !pObject->initialize() || !pObject->onCreate() ) {
+			delete pObject;
+			return NULL;
+		}
+		m_interfaceList.push_back( pObject );
+		return pObject;
+	}
+	// Creates a renderable interface object
+	template<class T>
+	T* createInterfaceObjectRenderable()
+	{
+		T* pObject = this->createInterfaceObject<T>();
+		if( pObject )
+			m_interfaceRenderableList.push_back( pObject );
+		return pObject;
+	}
 };
 
 ////////////////////
@@ -53,6 +84,9 @@ public:
 
 class CInterfaceBase
 {
+private:
+	glm::vec2 m_positionRel;
+	glm::vec2 m_sizeRel;
 public:
 	CInterfaceBase();
 	~CInterfaceBase();
@@ -62,17 +96,30 @@ public:
 
 	virtual bool onCreate() = 0;
 	virtual void onDestroy() = 0;
+
+	virtual void onPositionChange() {}
+	virtual void onResize() {}
+
+	void setRelativePosition( glm::vec2 posRel );
+	glm::vec2 getRelativePosition();
+	void setRelativeSize( glm::vec2 sizeRel );
+	glm::vec2 getRelativeSize();
 };
 
 //////////////////////////
 // CInterfaceRenderable //
 //////////////////////////
 
-class CInterfaceRenderable
+class CInterfaceRenderable : public CInterfaceBase
 {
 private:
-	GLuint m_vertexStart;
+	unsigned char m_layer;
 public:
 	CInterfaceRenderable();
 	~CInterfaceRenderable();
+
+	virtual void onLayerChange() {}
+
+	void setLayer( unsigned char layer );
+	unsigned char getLayer();
 };
