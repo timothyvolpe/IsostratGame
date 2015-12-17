@@ -81,6 +81,9 @@
     <ClCompile Include="source\ui\interface_screen.cpp">
       <Filter>Source Files\ui\controls</Filter>
     </ClCompile>
+    <ClCompile Include="source\ui\interface_label.cpp">
+      <Filter>Source Files\ui\controls</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\base.h">
@@ -129,6 +132,9 @@
       <Filter>Header Files\ui</Filter>
     </ClInclude>
     <ClInclude Include="include\ui\interface_screen.h">
+      <Filter>Header Files\ui\controls</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ui\interface_label.h">
       <Filter>Header Files\ui\controls</Filter>
     </ClInclude>
   </ItemGroup>
