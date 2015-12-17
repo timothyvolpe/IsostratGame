@@ -2,7 +2,7 @@
 
 #include "ui\interface.h"
 
-class CInterfaceScreen : public CInterfaceRenderable
+class CInterfaceScreen : public CInterfaceContainer
 {
 public:
 	CInterfaceScreen();

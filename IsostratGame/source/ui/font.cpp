@@ -203,7 +203,6 @@ bool CFont::initializeFont( FT_Library hFreeType, std::wstring fontName, std::un
 	}
 	
 	// Calculate the required texture size
-	//texSide = (int)ceil( sqrt( (double)fontMapArea ) );
 	texWidth = texHeight = 1024;
 	// Perform the bin packing
 	if( !this->startBinPack( glyphList, texWidth, texHeight ) ) {
@@ -241,7 +240,7 @@ bool CFont::startBinPack( std::vector<GlyphBitmap> glyphList, int width, int hei
 	// Allocate the bin
 	pTextureMap = new GLubyte[width*height];
 	// FOR TEST
-	memset( pTextureMap, 0, sizeof( GLubyte )*width*height );
+	//memset( pTextureMap, 0, sizeof( GLubyte )*width*height );
 
 	// Sort by area
 	std::sort( glyphList.begin(), glyphList.end() );

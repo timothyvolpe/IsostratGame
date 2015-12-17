@@ -7,10 +7,14 @@
 
 #define LAYER_SIZE 0.1f
 
+#define INVALID_QUAD_POS ((unsigned int)0)-1
+
 class CFontManager;
 class CLocalization;
 class CInterfaceBase;
 class CInterfaceRenderable;
+
+class CInterfaceScreen;
 
 #pragma pack(push, 1)
 typedef struct
@@ -27,8 +31,18 @@ typedef struct
 class CInterfaceManager
 {
 private:
+	typedef struct
+	{
+		GLuint quadCount;
+		GLuint textureId;
+		std::vector<InterfaceVertex> vertices;
+		GLuint *pQuadIndex;
+		GLuint *pQuadOffset;
+	} QuadData;
+
 	typedef std::vector<CInterfaceBase*> InterfaceList;
 	typedef std::vector<CInterfaceRenderable*> InterfaceRenderableList;
+	typedef std::vector<CInterfaceScreen*> ScreenList;
 
 	CFontManager *m_pFontManager;
 	CLocalization *m_pLocalization;
@@ -40,6 +54,14 @@ private:
 
 	GLuint m_interfaceVAO;
 	GLuint m_interfaceVBO;
+	std::vector<QuadData> m_quadData;
+	GLuint m_oldQuadCount;
+	GLuint m_quadCount;
+	bool m_bQuadsInvalid;
+	void reconstructQuadData();
+
+	ScreenList m_uiScreens;
+	bool loadScreens();
 public:
 	CInterfaceManager();
 	~CInterfaceManager();
@@ -54,6 +76,10 @@ public:
 	void setDimensions( int width, int height );
 	CFontManager* getFontManager();
 	CLocalization* getLocalization();
+
+	bool addQuads( std::vector<InterfaceVertex> vertices, GLuint textureId, GLuint *pQuadIndex, GLuint *pQuadOffset );
+	bool updateQuads( std::vector<InterfaceVertex> vertices, GLuint quadIndex );
+	bool removeQuads( GLuint quadIndex, GLuint count );
 
 	// Creates an interface object
 	template<class T>
@@ -82,14 +108,20 @@ public:
 // CInterfaceBase //
 ////////////////////
 
+class CInterfaceContainer;
+
 class CInterfaceBase
 {
 private:
 	glm::vec2 m_positionRel;
 	glm::vec2 m_sizeRel;
+
+	CInterfaceContainer *m_pParent;
+
+	bool m_bVisible;
 public:
 	CInterfaceBase();
-	~CInterfaceBase();
+	virtual ~CInterfaceBase();
 
 	bool initialize();
 	void destroy();
@@ -97,13 +129,44 @@ public:
 	virtual bool onCreate() = 0;
 	virtual void onDestroy() = 0;
 
+	virtual bool onActivate() { return true; };
+
 	virtual void onPositionChange() {}
 	virtual void onResize() {}
+	virtual void onVisibilityChange() {}
+
+	virtual void onParentChange() {}
 
 	void setRelativePosition( glm::vec2 posRel );
 	glm::vec2 getRelativePosition();
 	void setRelativeSize( glm::vec2 sizeRel );
 	glm::vec2 getRelativeSize();
+	bool isVisible();
+	void setVisible( bool visible );
+
+	friend class CInterfaceContainer;
+};
+
+/////////////////////////
+// CInterfaceContainer //
+/////////////////////////
+
+class CInterfaceContainer : public CInterfaceBase
+{
+private:
+	typedef std::vector<CInterfaceBase*> ChildrenList;
+
+	ChildrenList m_children;
+public:
+	CInterfaceContainer();
+	virtual ~CInterfaceContainer();
+
+	bool onCreate();
+	void onDestroy();
+
+	bool addToContainer( CInterfaceBase *pControl );
+	bool removeFromContainer( CInterfaceBase *pControl );
+	void clearContainer();
 };
 
 //////////////////////////
@@ -116,7 +179,9 @@ private:
 	unsigned char m_layer;
 public:
 	CInterfaceRenderable();
-	~CInterfaceRenderable();
+	virtual ~CInterfaceRenderable();
+
+	virtual void onDraw() = 0;
 
 	virtual void onLayerChange() {}
 
