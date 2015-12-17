@@ -1,6 +1,8 @@
 #include "base.h"
 #include "ui\font.h"
 
+#include <ftglyph.h>
+
 //////////////////
 // CFontManager //
 //////////////////
@@ -107,6 +109,10 @@ bool CFont::initializeFont( FT_Library hFreeType, std::wstring fontName, std::un
 	FT_Error ftError;
 	boost::filesystem::path fontPath;
 	FT_Long faceFlags;
+	bool bGlyphFailed;
+	std::vector<GlyphBitmap> glyphList;
+	int fontMapArea;
+	int texWidth, texHeight;
 
 	m_fontName = fontName;
 
@@ -132,52 +138,76 @@ bool CFont::initializeFont( FT_Library hFreeType, std::wstring fontName, std::un
 		return false;
 	}
 
-	// Set the face size
-	ftError = FT_Set_Char_Size( m_fontFace, 0, 16 * 64, 300, 300 );
-	if( ftError ) {
-		PrintWarn( L"Failed to load font \"%s\" (font size, %i)\n", fontName.c_str(), ftError );
+	std::vector<int> pointSizes;
+	pointSizes.push_back( 8 );
+	pointSizes.push_back( 10 );
+	pointSizes.push_back( 16 );
+	pointSizes.push_back( 22 );
+	pointSizes.push_back( 32 );
+
+	// Load each glyph for each point size
+	bGlyphFailed = false;
+	fontMapArea = 0;
+	for( auto it2 = pointSizes.begin(); it2 != pointSizes.end(); it2++ )
+	{
+		if( bGlyphFailed )
+			break;
+		// Set the face size (16pt)
+		ftError = FT_Set_Char_Size( m_fontFace, 0, (*it2) * 64, 300, 300 );
+		if( ftError ) {
+			PrintWarn( L"Failed to load font \"%s\" (font size, %i)\n", fontName.c_str(), ftError );
+			bGlyphFailed = true;
+			break;
+		}
+		for( std::unordered_set<wchar_t>::iterator it = cacheChars.begin(); it != cacheChars.end(); it++ )
+		{
+			FT_Bitmap glyphBitmap;
+
+			// Load the glyph
+			ftError = FT_Load_Char( m_fontFace, (*it), FT_LOAD_RENDER );
+			if( ftError ) {
+				PrintWarn( L"Failed to load font \"%s\" (load glyph, %i)\n", fontName.c_str(), ftError );
+				bGlyphFailed = true;
+				break;
+			}
+
+			glyphBitmap = m_fontFace->glyph->bitmap;
+
+			// Check the pixel mode
+			if( glyphBitmap.pixel_mode != FT_PIXEL_MODE_GRAY ) {
+				PrintWarn( L"Failed to load font \"%s\" (invalid pixel mode)\n", fontName.c_str() );
+				bGlyphFailed = true;
+				break;
+			}
+
+			int height = glyphBitmap.rows;
+			int width = glyphBitmap.width;
+
+			// Copy it into the glyph list
+			GlyphBitmap glyphBuffer;
+			glyphBuffer.charId = (*it);
+			glyphBuffer.width = width;
+			glyphBuffer.height = height;
+			glyphBuffer.pBuffer = new GLubyte[width*height];
+			glyphBuffer.pointSize = (*it2);
+			memcpy( glyphBuffer.pBuffer, glyphBitmap.buffer, width*height );
+			glyphList.push_back( glyphBuffer );
+			// Increase required area
+			fontMapArea += width*height;
+		}
+	}
+	if( bGlyphFailed ) {
 		FT_Done_Face( m_fontFace );
 		m_fontFace = NULL;
 		return false;
 	}
-
-	// Create the texture
-	glGenTextures( 1, &m_textureId );
-	glBindTexture( GL_TEXTURE_2D, m_textureId );
-	// Texture parameters
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
-	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
-
-	// Load each glyph
-	for( std::unordered_set<wchar_t>::iterator it = cacheChars.begin(); it != cacheChars.end(); it++ )
-	{
-		FT_UInt glyphIndex;
-		FT_GlyphSlot glyph;
-		
-		// Get the index
-		glyphIndex = FT_Get_Char_Index( m_fontFace, (*it) );
-		// Load and render the glyph
-		ftError = FT_Load_Glyph( m_fontFace, glyphIndex, FT_LOAD_RENDER | FT_LOAD_MONOCHROME );
-		if( ftError ) {
-			PrintWarn( L"Failed to load font \"%s\" (load glyph, %i)\n", fontName.c_str(), ftError );
-			FT_Done_Face( m_fontFace );
-			m_fontFace = NULL;
-			return false;
-		}
-
-		// Add it to the texture map
-		glyph = m_fontFace->glyph;
-
-		int height = glyph->bitmap.rows;
-		int width = glyph->bitmap.width;
-
-		// Add it to the texture
-		glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
-		glTexImage2D( GL_TEXTURE_2D, 0, GL_R8, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, glyph->bitmap.buffer );
-
-		break;
+	
+	// Calculate the required texture size
+	//texSide = (int)ceil( sqrt( (double)fontMapArea ) );
+	texWidth = texHeight = 1024;
+	// Perform the bin packing
+	if( !this->startBinPack( glyphList, texWidth, texHeight ) ) {
+		return false;
 	}
 
 	return false;
@@ -192,6 +222,156 @@ void CFont::destroy() {
 		m_fontFace = NULL;
 	}
 	m_fontName = L"deleted";
+}
+
+bool CFont::startBinPack( std::vector<GlyphBitmap> glyphList, int width, int height )
+{
+	GLubyte *pTextureMap;
+	FontMapNode *pRootNode;
+
+	// Create the texture
+	glGenTextures( 1, &m_textureId );
+	glBindTexture( GL_TEXTURE_2D, m_textureId );
+	// Texture parameters
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE );
+	glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE );
+
+	// Allocate the bin
+	pTextureMap = new GLubyte[width*height];
+	// FOR TEST
+	memset( pTextureMap, 0, sizeof( GLubyte )*width*height );
+
+	// Sort by area
+	std::sort( glyphList.begin(), glyphList.end() );
+
+	// Root node
+	pRootNode = new FontMapNode;
+	pRootNode->pLeft = NULL;
+	pRootNode->pRight = NULL;
+	pRootNode->width = width;
+	pRootNode->height = height;
+	pRootNode->x = pRootNode->y = 0;
+	pRootNode->pBuffer = NULL;
+	m_binNodes.clear();
+	m_binNodes.push_back( pRootNode );
+	// Pack the glyphs
+	for( std::vector<GlyphBitmap>::iterator it = glyphList.begin(); it != glyphList.end(); it++ ) {
+		// Insert into a node
+		if( !this->insertIntoBin( pRootNode, (*it) ) ) {
+			PrintError( L"Font tree ran out of space\n" );
+			break;//return false;
+		}
+	}
+
+	// Copy each glyph into its bin spot
+	for( std::vector<FontMapNode*>::iterator it = m_binNodes.begin(); it != m_binNodes.end(); it++ )
+	{
+		if( (*it)->pLeft || (*it)->pRight )
+		{
+			// Draw diagnostics
+			for( int x = 0; x < (*it)->width; x++ )
+			{
+				for( int y = 0; y < (*it)->height; y++ )
+				{
+					// Copy the glyph data
+					pTextureMap[(*it)->x + x + ((*it)->y + y)*height] = (*it)->pBuffer[x + y*(*it)->width];
+					// Add it to the map
+					FontGlyph renderedGlyph;
+					renderedGlyph.width = (*it)->width;
+					renderedGlyph.height = (*it)->height;
+					renderedGlyph.uv = glm::vec2( (float)(*it)->x / (float)width, (float)(*it)->y / (float)height );
+					m_renderedGlyphs[(*it)->pointSize][(*it)->charId] = renderedGlyph;
+				}
+			}
+		}
+		// Cleanup
+		SAFE_DELETE_A( (*it)->pBuffer );
+		SAFE_DELETE( (*it) );
+	}
+	m_binNodes.clear();
+	glyphList.clear();
+
+	// Store the pixel data
+	glPixelStorei( GL_UNPACK_ALIGNMENT, 1 );
+	glTexImage2D( GL_TEXTURE_2D, 0, GL_RED, width, height, 0, GL_RED, GL_UNSIGNED_BYTE, pTextureMap );
+	// Clean up
+	SAFE_DELETE_A( pTextureMap );
+
+	return true;
+}
+CFont::FontMapNode* CFont::insertIntoBin( FontMapNode *pNode, GlyphBitmap glyphBitmap )
+{
+	int newWidth, newHeight;
+
+	// Check if this node is internal (has children)
+	if( pNode->pLeft || pNode->pRight )
+	{
+		// Check its neighbors for space
+		if( pNode->pLeft ) {
+			// Try to put it in the neighbor
+			FontMapNode *pNewNode = insertIntoBin( pNode->pLeft, glyphBitmap );
+			if( pNewNode )
+				return pNewNode;
+		}
+		if( pNode->pRight ) {
+			// Try to put it in the neighbor
+			FontMapNode *pNewNode = insertIntoBin( pNode->pRight, glyphBitmap );
+			if( pNewNode )
+				return pNewNode;
+		}
+		// No space in its neighbors
+		return NULL;
+	}
+
+	// If it has no children, check if the glyph fits here
+	if( glyphBitmap.width > pNode->width || glyphBitmap.height > pNode->height )
+		return NULL;
+
+	// Split the node along the short axis and 
+	// insert the glyph
+	newWidth = pNode->width - glyphBitmap.width;
+	newHeight = pNode->height - glyphBitmap.height;
+	// Create new children
+	pNode->pLeft = new FontMapNode();
+	pNode->pRight = new FontMapNode();
+	m_binNodes.push_back( pNode->pLeft );
+	m_binNodes.push_back( pNode->pRight );
+	if( newWidth <= newHeight )
+	{
+		pNode->pLeft->x = pNode->x + glyphBitmap.width;
+		pNode->pLeft->y = pNode->y;
+		pNode->pLeft->width = newWidth;
+		pNode->pLeft->height = glyphBitmap.height;
+
+		pNode->pRight->x = pNode->x;
+		pNode->pRight->y = pNode->y + glyphBitmap.height;
+		pNode->pRight->width = pNode->width;
+		pNode->pRight->height = newHeight;
+	}
+	else
+	{
+		pNode->pLeft->x = pNode->x;
+		pNode->pLeft->y = pNode->y + glyphBitmap.height;
+		pNode->pLeft->width = glyphBitmap.width;
+		pNode->pLeft->height = newHeight;
+
+		pNode->pRight->x = pNode->x + glyphBitmap.width;
+		pNode->pRight->y = pNode->y;
+		pNode->pRight->width = newWidth;
+		pNode->pRight->height = pNode->height;
+	}
+
+	// Shrink the node
+	pNode->width = glyphBitmap.width;
+	pNode->height = glyphBitmap.height;
+
+	pNode->charId = glyphBitmap.charId;
+	pNode->pointSize = glyphBitmap.pointSize;
+	pNode->pBuffer = glyphBitmap.pBuffer;
+
+	return pNode;
 }
 
 GLuint CFont::getTextureId() {

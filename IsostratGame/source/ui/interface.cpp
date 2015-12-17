@@ -47,14 +47,14 @@ bool CInterfaceManager::initialize()
 	pTestScreen0 = this->createInterfaceObjectRenderable<CInterfaceScreen>();
 	if( pTestScreen0 ) {
 		pTestScreen0->setRelativePosition( glm::vec2( 0.0f, 0.0f ) );
-		pTestScreen0->setRelativeSize( glm::vec2( 0.2f, 0.2f ) );
+		pTestScreen0->setRelativeSize( glm::vec2( 0.7f, 0.7f ) );
 	}
 	// 2
-	pTestScreen1 = this->createInterfaceObjectRenderable<CInterfaceScreen>();
+	/*pTestScreen1 = this->createInterfaceObjectRenderable<CInterfaceScreen>();
 	if( pTestScreen1 ) {
 		pTestScreen1->setRelativePosition( glm::vec2( 0.5f, 0.5f ) );
 		pTestScreen1->setRelativeSize( glm::vec2( 0.2f, 0.2f ) );
-	}
+	}*/
 
 	// Create the interface VAO
 	glGenVertexArrays( 1, &m_interfaceVAO );
@@ -63,13 +63,13 @@ bool CInterfaceManager::initialize()
 	glBindBuffer( GL_ARRAY_BUFFER, m_interfaceVBO );
 	InterfaceVertex testVertices[4];
 	testVertices[0].relpos = glm::vec2( 0.0f, 1.0f );
-	testVertices[0].tex = glm::vec2( 0.0f, 1.0f );
+	testVertices[0].tex = glm::vec2( 0.0f, 0.0f );
 	testVertices[1].relpos = glm::vec2( 0.0f, 0.0f );
-	testVertices[1].tex = glm::vec2( 0.0f, 0.0f );
+	testVertices[1].tex = glm::vec2( 0.0f, 1.0f );
 	testVertices[2].relpos = glm::vec2( 1.0f, 1.0f );
-	testVertices[2].tex = glm::vec2( 1.0f, 1.0f );
+	testVertices[2].tex = glm::vec2( 1.0f, 0.0f );
 	testVertices[3].relpos = glm::vec2( 1.0f, 0.0f );
-	testVertices[3].tex = glm::vec2( 1.0f, 0.0f );
+	testVertices[3].tex = glm::vec2( 1.0f, 1.0f );
 	glBufferData( GL_ARRAY_BUFFER, sizeof( testVertices ), &testVertices[0], GL_STATIC_DRAW );
 	glVertexAttribPointer( 0, 2, GL_FLOAT, GL_FALSE, sizeof( InterfaceVertex ), (GLvoid*)offsetof( InterfaceVertex, relpos ) );
 	glVertexAttribPointer( 1, 2, GL_FLOAT, GL_FALSE, sizeof( InterfaceVertex ), (GLvoid*)offsetof( InterfaceVertex, tex ) );

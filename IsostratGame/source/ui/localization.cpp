@@ -93,6 +93,8 @@ std::unordered_set<wchar_t> CLocalization::getCacheChars() // Determine what cha
 	// First, check LANGUAGE_CACHE_CHARS
 	infoCache = m_langTree.get( L"language.info.LANGUAGE_CACHE_CHARS", L"" );
 	for( unsigned int i = 0; i < infoCache.length(); i++ ) {
+		if( infoCache[i] == L'\x96' || infoCache[i] == L'\x9' || infoCache[i] == '\xA' || infoCache[i] == '\xD' ) // \0 \t \n \r
+			continue;
 		cacheChars.insert( infoCache[i] );
 	}
 
@@ -104,6 +106,8 @@ std::unordered_set<wchar_t> CLocalization::getCacheChars() // Determine what cha
 			for( unsigned int i = 0; i < kv.second.data().size(); i++ )
 			{
 				currentChar = kv.second.data()[i];
+				if( currentChar == L'\x9C' || currentChar == L'\x9' || currentChar == '\xA' || currentChar == '\xD' )
+					continue;
 				if( cacheChars.find( currentChar ) == cacheChars.end() )
 					cacheChars.insert( currentChar );
 			}
