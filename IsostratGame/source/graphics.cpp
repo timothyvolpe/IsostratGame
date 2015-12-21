@@ -103,7 +103,8 @@ bool CGraphics::initialize()
 	if( !m_pWorld->initialize() )
 		return false;
 	// Load the world
-	m_pWorld->loadWorld();
+	if( !m_pWorld->loadWorld() )
+		return false;
 
 	return true;
 }

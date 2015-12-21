@@ -7,26 +7,29 @@
 #include "shader\shaderbase.h"
 #include "graphics.h"
 
+#include "world\block.h"
+
+///////////////////
+// CChunkManager //
+///////////////////
+
 CChunkManager::CChunkManager()
 {
-	m_chunkViewDistance = 2;
+	m_chunkViewDistance = 0;
 	m_chunkCount = 0;
 	m_bUpdateScale = true;
 }
 CChunkManager::~CChunkManager() {
 }
 
+// Generates all the chunk meshes based on the loaded data
 bool CChunkManager::generateMeshes()
 {
 	int chunkSize;
 	int bufferCount;
-	unsigned int chunksGenerated;
-	unsigned int firstIndex, chunkIndex;
-	unsigned int chunksPerBuffer, verticesPerBuffer, indicesPerBuffer;
+	unsigned int chunksPerBuffer;
 
-	// Determine how many chunks we'll have
-	m_chunkCount = (m_chunkViewDistance * 2 + 1)*(m_chunkViewDistance * 2 + 1);
-	// Determine how many buffers we need1
+	// Determine how many buffers we need
 	chunkSize = CHUNK_VERTEX_COUNT*sizeof( ChunkVertex );
 	chunksPerBuffer = (int)floor( (double)CHUNK_BATCH_SIZE / (double)chunkSize );
 	bufferCount = (int)ceil( (double)m_chunkCount / (double)chunksPerBuffer );
@@ -34,7 +37,7 @@ bool CChunkManager::generateMeshes()
 		PrintError( L"Chunk manager is generating nothing!\n" );
 		return false;
 	}
-	
+
 	// Allocate the arrays and buffers
 	m_chunkVertexArrays.resize( bufferCount );
 	m_chunkVertexBuffers.resize( bufferCount );
@@ -43,17 +46,9 @@ bool CChunkManager::generateMeshes()
 	glGenBuffers( bufferCount, &m_chunkVertexBuffers[0] );
 	glGenBuffers( bufferCount, &m_chunkIndexBuffers[0] );
 
-	verticesPerBuffer = CHUNK_VERTEX_COUNT*chunksPerBuffer;
-	indicesPerBuffer = chunksPerBuffer*CHUNK_INDEX_COUNT;
-
-	// Populate each vertex array
-	chunksGenerated = 0;
-	firstIndex = 0;
-	for( int i = 0; i < bufferCount; i++ )
+	// Fill each buffer with blank data to allocate space
+	for( size_t i = 0; i < m_chunkVertexArrays.size(); i++ )
 	{
-		std::vector<ChunkVertex> chunkVertices;
-		std::vector<unsigned int> chunkIndices;
-
 		// Calculate chunks and indices in the buffer
 		if( i == bufferCount - 1 ) {
 			m_bufferChunkCounts.push_back( m_chunkCount - i*chunksPerBuffer );
@@ -65,104 +60,36 @@ bool CChunkManager::generateMeshes()
 		}
 
 		glBindVertexArray( m_chunkVertexArrays[i] );
-
-		// Vertex buffer
+		// Fill the vertex buffer
 		glBindBuffer( GL_ARRAY_BUFFER, m_chunkVertexBuffers[i] );
-		chunkVertices.reserve( m_bufferChunkCounts[i]*CHUNK_VERTEX_COUNT );
-		for( unsigned int chunk = 0; chunk < m_bufferChunkCounts[i]; chunk++ )
-		{
-			// For each chunk
-			for( unsigned int y = 0; y < CHUNK_HEIGHT + 1; y++ ) {
-				for( unsigned int x = 0; x < CHUNK_SIDE_LENGTH + 1; x++ ) {
-					for( unsigned int z = 0; z < CHUNK_SIDE_LENGTH + 1; z++ ) {
-						ChunkVertex vertex;
-						vertex.pos = glm::ivec3( x, y, z );
-						if( chunk % 2 == 0 )
-							vertex.color = glm::vec3( 0.0f, 1.0f, 0.0f );
-						else
-							vertex.color = glm::vec3( 0.0f, 1.0f, 1.0f );
-						chunkVertices.push_back( vertex );
-					}
-				}
-			}
-		}
-		// Set the data
-		glBufferData( GL_ARRAY_BUFFER, sizeof( ChunkVertex )*chunkVertices.size(), &chunkVertices[0], GL_STATIC_DRAW );
+		glBufferData( GL_ARRAY_BUFFER, sizeof( ChunkVertex )*CHUNK_VERTEX_COUNT*m_bufferChunkCounts[i], NULL, GL_DYNAMIC_DRAW );
 		glVertexAttribIPointer( 0, 3, GL_INT, sizeof( ChunkVertex ), (GLvoid*)offsetof( ChunkVertex, pos ) );
 		glVertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, sizeof( ChunkVertex ), (GLvoid*)offsetof( ChunkVertex, color ) );
 		glEnableVertexAttribArray( 0 );
 		glEnableVertexAttribArray( 1 );
-
-		// Index buffer
+		// Fill the index buffer
 		glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, m_chunkIndexBuffers[i] );
-		chunkIndices.resize( m_bufferChunkCounts[i]*CHUNK_INDEX_COUNT );
-		for( unsigned int chunk = 0; chunk < m_bufferChunkCounts[i]; chunk++ )
-		{
-			unsigned int firstVertex;
-			unsigned int layerSize = (CHUNK_SIDE_LENGTH + 1)*(CHUNK_SIDE_LENGTH + 1);
-			unsigned int rowSize = (CHUNK_SIDE_LENGTH + 1);
+		glBufferData( GL_ELEMENT_ARRAY_BUFFER, sizeof( unsigned int )*CHUNK_INDEX_COUNT*m_bufferChunkCounts[i], NULL, GL_DYNAMIC_DRAW );
+	}
 
-			chunkIndex = 0;
-			firstVertex = chunk*CHUNK_VERTEX_COUNT;
-			for( unsigned int y = 0; y < CHUNK_HEIGHT; y++ )
-			{
-				for( unsigned int x = 0; x < CHUNK_SIDE_LENGTH; x++ )
-				{
-					for( unsigned int z = 0; z < CHUNK_SIDE_LENGTH; z++ )
-					{
-						// BOTTOM
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + rowSize + 1;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + 1;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + rowSize;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + rowSize + 1;
-						// TOP
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize + 1;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize + rowSize + 1;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize + rowSize + 1;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize + rowSize;
-						// FRONT
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + 1;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + 1 + layerSize + rowSize;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + 1 + layerSize;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + 1;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + 1 + rowSize;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + 1 + layerSize + rowSize;
-						// BACK
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize + rowSize;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize + rowSize;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + rowSize;
-						// LEFT
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize + 1;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + 1;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + layerSize + 1;
-						// RIGHT
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + rowSize + layerSize;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + rowSize + layerSize + 1;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + rowSize;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + rowSize;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + rowSize + layerSize + 1;
-						chunkIndices[firstIndex + (chunkIndex++)] = firstVertex + rowSize + 1;
-
-						firstVertex++;
-					}
-					firstVertex++;
-				}
-			}
-			firstIndex += CHUNK_INDEX_COUNT;
+	// Fill the mesh for each chunk
+	for( int i = 0; i < bufferCount; i++ )
+	{
+		glBindVertexArray( m_chunkVertexArrays[i] );
+		// Do all vertex data for this buffer
+		glBindBuffer( GL_ARRAY_BUFFER, m_chunkVertexBuffers[i] );
+		for( GLuint chunk = 0; chunk < m_bufferChunkCounts[i]; chunk++ ) {
+			// Set the buffer position
+			m_chunks[chunk]->setBufferPosition( i, chunk*CHUNK_VERTEX_COUNT, chunk*CHUNK_INDEX_COUNT );
+			if( !m_chunks[chunk]->populateVertices() )
+				return false;
 		}
-		glBufferData( GL_ELEMENT_ARRAY_BUFFER, sizeof( unsigned int )*chunkIndices.size(), &chunkIndices[0], GL_STATIC_DRAW );
-
-		chunksGenerated += chunksPerBuffer;
+		// Do all index data for this buffer
+		glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, m_chunkIndexBuffers[i] );
+		for( GLuint chunk = 0; chunk < m_bufferChunkCounts[i]; chunk++ ) {
+			if( !m_chunks[chunk]->populateIndices() )
+				return false;
+		}
 	}
 
 	return true;
@@ -184,14 +111,16 @@ void CChunkManager::destroyMeshes()
 
 bool CChunkManager::initialize()
 {
-	// Generate the chunk meshes
-	this->generateMeshes();
+	// Load a terrain file
+	if( !this->openTerrainFile( "test.ter" ) )
+		return false;
 
 	return true;
 }
 void CChunkManager::destroy()
 {
-	this->destroyMeshes();
+	// Close the terrain file
+	this->closeTerrainFile();
 }
 
 void CChunkManager::draw( glm::mat4 projection, glm::mat4 view )
@@ -238,6 +167,52 @@ void CChunkManager::draw( glm::mat4 projection, glm::mat4 view )
 	}
 }
 
+bool CChunkManager::allocateChunks( unsigned char viewDistance )
+{
+	// Allocate all the chunks based on the view distance
+	m_chunkViewDistance = viewDistance;
+	m_chunkCount = (m_chunkViewDistance * 2 + 1)*(m_chunkViewDistance * 2 + 1);
+	// Allocate the chunks
+	m_chunks.reserve( m_chunkCount );
+	for( unsigned int i = 0; i < m_chunkCount; i++ ) {
+		m_chunks.push_back( new CChunk() );
+	}
+	// Generate initial chunk meshes
+	if( !this->generateMeshes() )
+		return false;
+
+	return true;
+}
+void CChunkManager::destroyChunks()
+{
+	// Destroy each chunk
+	for( auto it = m_chunks.begin(); it != m_chunks.end(); it++ ) {
+		DESTROY_DELETE( (*it) );
+	}
+	// Destroy the meshes
+	this->destroyMeshes();
+	m_chunkCount = 0;
+	m_chunks.clear();
+}
+
+bool CChunkManager::openTerrainFile( std::string path )
+{
+	// Create the chunks
+	if( !this->allocateChunks( 2 ) )
+		return false;
+
+	return true;
+}
+bool CChunkManager::saveTerrainFile( std::string path )
+{
+	return true;
+}
+void CChunkManager::closeTerrainFile()
+{
+	// Delete the chunks
+	this->destroyChunks();
+}
+
 // Returns the index (0 to chunk count)
 // 0,0 is in the top left corner and is index 0
 // X axis is to the right
@@ -245,4 +220,151 @@ void CChunkManager::draw( glm::mat4 projection, glm::mat4 view )
 // index increases to the right
 unsigned int CChunkManager::getChunkIndex( int x, int z ) {
 	return (z*(m_chunkViewDistance * 2 + 1)) + x;
+}
+
+////////////
+// CChunk //
+////////////
+
+CChunk::CChunk() {
+	m_bufferIndex = 0;
+	m_vertexOffset = 0;
+	m_indexOffset = 0;
+}
+CChunk::~CChunk() {
+}
+
+bool CChunk::initialize()
+{
+	m_blocks.resize( CHUNK_BLOCK_COUNT );
+
+	return true;
+}
+void CChunk::destroy() 
+{
+	m_bufferIndex = 0;
+	m_vertexOffset = 0;
+	m_indexOffset = 0;
+	m_blocks.clear();
+}
+
+void CChunk::setBufferPosition( int bufferIndex, GLuint vertexOffset, GLuint indexOffset )
+{
+	m_bufferIndex = bufferIndex;
+	m_vertexOffset = vertexOffset;
+	m_indexOffset = indexOffset;
+}
+bool CChunk::populateVertices()
+{
+	GLuint currentVertex;
+	ChunkVertex *pVertices;
+
+	// The vertex buffer should already be bound
+
+	// Get a pointer to the data
+	pVertices = reinterpret_cast<ChunkVertex*>(glMapBufferRange( GL_ARRAY_BUFFER, sizeof( ChunkVertex )*m_vertexOffset, sizeof( ChunkVertex )*CHUNK_VERTEX_COUNT, GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_WRITE_BIT ));
+	if( !pVertices ) {
+		PrintError( L"Failed to update terrain\n" );
+		return false;
+	}
+	// Update the data
+	currentVertex = 0;
+	for( unsigned int y = 0; y < CHUNK_HEIGHT + 1; y++ ) {
+		for( unsigned int x = 0; x < CHUNK_SIDE_LENGTH + 1; x++ ) {
+			for( unsigned int z = 0; z < CHUNK_SIDE_LENGTH + 1; z++ ) {
+				ChunkVertex vertex;
+				vertex.pos = glm::ivec3( x, y, z );
+				vertex.color = glm::vec3( 0.5f, (x % 2 == 0) ? 0.0f : 1.0f, (z % 2 != 0) ? 0.0f : 1.0f );
+				pVertices[currentVertex++] = vertex;
+			}
+		}
+	}
+	// Finish
+	glUnmapBuffer( GL_ARRAY_BUFFER );
+
+	return true;
+}
+bool CChunk::populateIndices()
+{
+	GLuint currentIndex;
+	unsigned int *pIndices;
+	unsigned int firstIndex;
+	unsigned int layerSize = (CHUNK_SIDE_LENGTH + 1)*(CHUNK_SIDE_LENGTH + 1);
+	unsigned int rowSize = (CHUNK_SIDE_LENGTH + 1);
+
+	// The index buffer should already be bound
+
+	// Get a pointer to the data
+	pIndices = reinterpret_cast<unsigned int*>(glMapBufferRange( GL_ELEMENT_ARRAY_BUFFER, sizeof( unsigned int )*m_indexOffset, sizeof( unsigned int )*CHUNK_INDEX_COUNT, GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_WRITE_BIT ));
+	if( !pIndices ) {
+		PrintError( L"Failed to update terrain\n" );
+		return false;
+	}
+
+	// Update the data
+	currentIndex = 0;
+	for( unsigned int y = 0; y < CHUNK_HEIGHT; y++ )
+	{
+		firstIndex = y*layerSize;
+		for( unsigned int x = 0; x < CHUNK_SIDE_LENGTH; x++ )
+		{
+			for( unsigned int z = 0; z < CHUNK_SIDE_LENGTH; z++ )
+			{
+				// BOTTOM
+				pIndices[currentIndex++] = firstIndex;
+				pIndices[currentIndex++] = firstIndex + rowSize + 1;
+				pIndices[currentIndex++] = firstIndex + 1;
+				pIndices[currentIndex++] = firstIndex;
+				pIndices[currentIndex++] = firstIndex + rowSize;
+				pIndices[currentIndex++] = firstIndex + rowSize + 1;
+				// TOP
+				pIndices[currentIndex++] = firstIndex + layerSize;
+				pIndices[currentIndex++] = firstIndex + layerSize + 1;
+				pIndices[currentIndex++] = firstIndex + layerSize + rowSize + 1;
+				pIndices[currentIndex++] = firstIndex + layerSize;
+				pIndices[currentIndex++] = firstIndex + layerSize + rowSize + 1;
+				pIndices[currentIndex++] = firstIndex + layerSize + rowSize;
+				// FRONT
+				pIndices[currentIndex++] = firstIndex + 1;
+				pIndices[currentIndex++] = firstIndex + 1 + layerSize + rowSize;
+				pIndices[currentIndex++] = firstIndex + 1 + layerSize;
+				pIndices[currentIndex++] = firstIndex + 1;
+				pIndices[currentIndex++] = firstIndex + 1 + rowSize;
+				pIndices[currentIndex++] = firstIndex + 1 + layerSize + rowSize;
+				// BACK
+				pIndices[currentIndex++] = firstIndex;
+				pIndices[currentIndex++] = firstIndex + layerSize;
+				pIndices[currentIndex++] = firstIndex + layerSize + rowSize;
+				pIndices[currentIndex++] = firstIndex;
+				pIndices[currentIndex++] = firstIndex + layerSize + rowSize;
+				pIndices[currentIndex++] = firstIndex + rowSize;
+				// LEFT
+				pIndices[currentIndex++] = firstIndex;
+				pIndices[currentIndex++] = firstIndex + layerSize + 1;
+				pIndices[currentIndex++] = firstIndex + layerSize;
+				pIndices[currentIndex++] = firstIndex;
+				pIndices[currentIndex++] = firstIndex + 1;
+				pIndices[currentIndex++] = firstIndex + layerSize + 1;
+				// RIGHT
+				pIndices[currentIndex++] = firstIndex + rowSize + layerSize;
+				pIndices[currentIndex++] = firstIndex + rowSize + layerSize + 1;
+				pIndices[currentIndex++] = firstIndex + rowSize;
+				pIndices[currentIndex++] = firstIndex + rowSize;
+				pIndices[currentIndex++] = firstIndex + rowSize + layerSize + 1;
+				pIndices[currentIndex++] = firstIndex + rowSize + 1;
+
+				firstIndex++;
+			}
+			firstIndex++;
+		}
+	}
+
+	// Finisn
+	glUnmapBuffer( GL_ELEMENT_ARRAY_BUFFER );
+
+	return true;
+}
+
+CBlock* CChunk::getBlockAt( glm::vec3 pos ) {
+	return NULL;
 }
