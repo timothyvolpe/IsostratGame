@@ -37,6 +37,12 @@
     <Filter Include="Source Files\ui\controls">
       <UniqueIdentifier>{99891d80-aaca-4566-80cf-2130b3c2362f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\world\blocks">
+      <UniqueIdentifier>{98cca163-bd47-4691-bd41-a537519c64a4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\world\blocks">
+      <UniqueIdentifier>{fec8d2d5-17a1-478d-80ae-2d38c5474b14}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\main.cpp">
@@ -84,6 +90,9 @@
     <ClCompile Include="source\ui\interface_label.cpp">
       <Filter>Source Files\ui\controls</Filter>
     </ClCompile>
+    <ClCompile Include="source\world\block.cpp">
+      <Filter>Source Files\world\blocks</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\base.h">
@@ -116,9 +125,6 @@
     <ClInclude Include="include\camera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\world\chunkmanager.h">
-      <Filter>Header Files\world</Filter>
-    </ClInclude>
     <ClInclude Include="include\world\world.h">
       <Filter>Header Files\world</Filter>
     </ClInclude>
@@ -136,6 +142,12 @@
     </ClInclude>
     <ClInclude Include="include\ui\interface_label.h">
       <Filter>Header Files\ui\controls</Filter>
+    </ClInclude>
+    <ClInclude Include="include\world\chunkmanager.h">
+      <Filter>Header Files\world</Filter>
+    </ClInclude>
+    <ClInclude Include="include\world\block.h">
+      <Filter>Header Files\world\blocks</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

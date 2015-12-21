@@ -177,6 +177,7 @@
     <ClCompile Include="source\ui\interface_label.cpp" />
     <ClCompile Include="source\ui\interface_screen.cpp" />
     <ClCompile Include="source\ui\localization.cpp" />
+    <ClCompile Include="source\world\block.cpp" />
     <ClCompile Include="source\world\chunkmanager.cpp" />
     <ClCompile Include="source\world\world.cpp" />
   </ItemGroup>
@@ -196,6 +197,7 @@
     <ClInclude Include="include\ui\interface_label.h" />
     <ClInclude Include="include\ui\localization.h" />
     <ClInclude Include="include\ui\interface_screen.h" />
+    <ClInclude Include="include\world\block.h" />
     <ClInclude Include="include\world\chunkmanager.h" />
     <ClInclude Include="include\world\world.h" />
   </ItemGroup>
