@@ -3,14 +3,23 @@ language "en"
 	info
 	{
 		LANGUAGE_NAME "English"
+		LANGUAGE_CACHE_CHARS "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890!@#$%^&*()-_+=~`\"\'{}[]\\|<>,.?/" ; Chars that are garaunteed to be cached 
 	}
 	fonts
 	{
-		DEFAULTFONT "verdana.ttf"
+		DEFAULTFONT "arial.ttf"
 	}
 
-	DEBUG_FRAMECOUNTER "FPS:"
-	DEBUG_TRIANGLECOUNT "Triangles:"
-	
-	DEBUG_LOCALIZATIONTEST "Je était analyse: à è ç œ ô"
+	strings
+	{
+		DEBUG_FRAMECOUNTER "FPS:"
+		DEBUG_TRIANGLECOUNT "Triangles:"
+		
+		DEBUG_LOCALIZATIONTEST "Je était analyse: à è ç œ ô"
+		
+		DEBUG_WIREFRAME "Wireframe Mode:"
+		DEBUG_WIREFRAME_MODE0 "solid"
+		DEBUG_WIREFRAME_MODE1 "wireframe"
+		DEBUG_WIREFRAME_MODE2 "wireframeui"
+	}
 }

@@ -14,5 +14,5 @@ layout(std140) uniform GlobalMatrices {
 void main()
 {
     gl_Position = modelViewProjection.mvp_persp * vec4( in_position*voxelScale, 1 );
-	frag_color = vec4( in_color*0.5f, 1.0f );
+	frag_color = vec4( in_color, 1.0f );
 }

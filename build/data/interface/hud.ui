@@ -1,0 +1,29 @@
+<interface name="hud">
+	<control type="panel">
+		<position x="0" y="0.8" />
+		<size x="0.4" y = "0.2" />
+		<children>
+			<component type="label">
+				<position x="0" y="0.8" />
+				<size x="1" y="0.2" />
+				<property name="font">DEFAULTFONT</property>
+				<property name="font-size">12</property>
+				<property name="text">#DEBUG_FRAMECOUNTER#</text>
+			</component>
+			<component type="label">
+				<position x="0" y="0.6" />
+				<size x="1" y="0.2" />
+				<property name="font">DEFAULTFONT</property>
+				<property name="font-size">12</property>
+				<property name="text">#DEBUG_TRIANGLECOUNT#</text>
+			</component>
+			<component type="label">
+				<position x="0" y="0.4" />
+				<size x="1" y="0.2" />
+				<property name="font">DEFAULTFONT</property>
+				<property name="font-size">12</property>
+				<property name="text">#DEBUG_WIREFRAME# #DEBUG_WIREFRAME_MODE0#</text>
+			</component>
+		</children>
+	</control>
+</interface>
