@@ -110,14 +110,14 @@ bool CInterfaceManager::loadScreens()
 			return false;
 	}
 	// 2
-	pLabel1 = this->createInterfaceObjectRenderable<CInterfaceLabel>();
+	/*pLabel1 = this->createInterfaceObjectRenderable<CInterfaceLabel>();
 	if( pLabel1 ) {
 		pLabel1->setRelativePosition( glm::vec2( 0.5f, 0.5f ) );
 		pLabel1->setRelativeSize( glm::vec2( 0.2f, 0.2f ) );
 		pHud->addToContainer( pLabel1 );
 		if( !pLabel1->onActivate() )
 			return false;
-	}
+	}*/
 	m_uiScreens.push_back( pHud );
 
 	return true;

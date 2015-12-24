@@ -18,6 +18,9 @@ CChunkManager::CChunkManager()
 	m_chunkViewDistance = 0;
 	m_chunkCount = 0;
 	m_bUpdateScale = true;
+	m_chunkDataSize = 0;
+
+	m_renderPos = glm::ivec2( 13, 13 );
 }
 CChunkManager::~CChunkManager() {
 }
@@ -96,9 +99,12 @@ bool CChunkManager::generateMeshes()
 }
 void CChunkManager::destroyMeshes()
 {
-	glDeleteVertexArrays( m_chunkVertexArrays.size(), &m_chunkVertexArrays[0] );
-	glDeleteBuffers( m_chunkVertexBuffers.size(), &m_chunkVertexBuffers[0] );
-	glDeleteBuffers( m_chunkIndexBuffers.size(), &m_chunkIndexBuffers[0] );
+	if( m_chunkVertexArrays.size() > 0 )
+		glDeleteVertexArrays( m_chunkVertexArrays.size(), &m_chunkVertexArrays[0] );
+	if( m_chunkVertexBuffers.size() > 0 )
+		glDeleteBuffers( m_chunkVertexBuffers.size(), &m_chunkVertexBuffers[0] );
+	if( m_chunkIndexBuffers.size() > 0 )
+		glDeleteBuffers( m_chunkIndexBuffers.size(), &m_chunkIndexBuffers[0] );
 	m_chunkVertexArrays.clear();
 	m_chunkVertexBuffers.clear();
 	m_chunkIndexBuffers.clear();
@@ -111,10 +117,6 @@ void CChunkManager::destroyMeshes()
 
 bool CChunkManager::initialize()
 {
-	// Load a terrain file
-	if( !this->openTerrainFile( "test.ter" ) )
-		return false;
-
 	return true;
 }
 void CChunkManager::destroy()
@@ -128,8 +130,9 @@ void CChunkManager::draw( glm::mat4 projection, glm::mat4 view )
 	CShaderManager *pShaderManager = CGame::instance().getGraphics()->getShaderManager();
 	glm::mat4 modelMatrix;
 	unsigned int chunkStart, chunkLength, chunksRendered;
-	int chunkIndex, chunkRow, chunkColumn;
+	int chunkRow, chunkColumn;
 	glm::vec3 chunkOffset;
+	size_t chunkIndex;
 
 	// use the chunk shader program
 	pShaderManager->getProgram( SHADERPROGRAM_CHUNK )->bind();
@@ -160,7 +163,7 @@ void CChunkManager::draw( glm::mat4 projection, glm::mat4 view )
 			chunkStart = chunk*CHUNK_VERTEX_COUNT;
 
 			//glDrawArrays( GL_TRIANGLES, chunkStart, chunkLength );
-			glDrawRangeElements( GL_TRIANGLES, chunkStart, chunkStart + chunkLength, CHUNK_INDEX_COUNT, GL_UNSIGNED_INT, (GLvoid*)(sizeof(unsigned int)*chunk*CHUNK_INDEX_COUNT) );
+			glDrawRangeElements( GL_TRIANGLES, chunkStart, chunkStart + chunkLength, m_chunks[chunkIndex]->getIndexCount(), GL_UNSIGNED_INT, (GLvoid*)(sizeof(unsigned int)*chunk*CHUNK_INDEX_COUNT) );
 			chunkIndex++;
 		}
 		chunksRendered += m_bufferChunkCounts[i];
@@ -169,14 +172,31 @@ void CChunkManager::draw( glm::mat4 projection, glm::mat4 view )
 
 bool CChunkManager::allocateChunks( unsigned char viewDistance )
 {
+	glm::ivec2 renderPosOffset;
+
 	// Allocate all the chunks based on the view distance
 	m_chunkViewDistance = viewDistance;
 	m_chunkCount = (m_chunkViewDistance * 2 + 1)*(m_chunkViewDistance * 2 + 1);
-	// Allocate the chunks
+	// Allocate the chunks around render pos
+	renderPosOffset = m_renderPos + glm::ivec2( -m_chunkViewDistance, -m_chunkViewDistance );
 	m_chunks.reserve( m_chunkCount );
-	for( unsigned int i = 0; i < m_chunkCount; i++ ) {
-		m_chunks.push_back( new CChunk() );
+	for( int x = 0; x < (m_chunkViewDistance * 2 + 1); x++ )
+	{
+		for( int y = 0; y < (m_chunkViewDistance * 2 + 1); y++ )
+		{
+			// Load data from file
+			CChunk *pChunk = new CChunk();
+			unsigned short *pData = this->readRawChunkData( glm::ivec2( renderPosOffset.x+x, renderPosOffset.y+y ) );
+			if( !pData )
+				return false;
+			if( !pChunk->initialize() )
+				return false;
+			pChunk->setRawData( pData );
+			m_chunks.push_back( pChunk );
+			SAFE_DELETE_A( pData );
+		}
 	}
+
 	// Generate initial chunk meshes
 	if( !this->generateMeshes() )
 		return false;
@@ -197,6 +217,43 @@ void CChunkManager::destroyChunks()
 
 bool CChunkManager::openTerrainFile( std::string path )
 {
+	TerrainSaveHeader terrainHeader;
+	TerrainPositionTable positionTable;
+
+	// Open the chunk stream
+	try
+	{
+		// Open the file
+		m_chunkStream.open( path.c_str(), std::ios::in | std::ios::out | std::ios::binary );
+		// Get the file size
+		m_chunkStream.seekg( 0, std::ios::end );
+		m_chunkDataSize = (size_t)m_chunkStream.tellg();
+		m_chunkStream.seekg( 0, std::ios::beg );
+		// Read the header
+		m_chunkStream.read( reinterpret_cast<char*>( &terrainHeader ), sizeof( TerrainSaveHeader ) );
+		// Read the position table
+		m_chunkStream.read( reinterpret_cast<char*>( &positionTable ), sizeof( TerrainPositionTable ) );
+	}
+	catch( std::ios_base::failure ) {
+		PrintError( L"Failed to open terrain file \"%hs\"\n", path.c_str() );
+		return false;
+	}
+	// Make sure the version and height matches
+	if( terrainHeader.version_a != TERRAIN_VERSION_A || terrainHeader.version_b != TERRAIN_VERSION_B ) {
+		PrintError( L"Terrain file (version %i.%i) is not the correct version (%i.%i)\n", terrainHeader.version_a, terrainHeader.version_b, TERRAIN_VERSION_A, TERRAIN_VERSION_B );
+		return false;
+	}
+	if( terrainHeader.chunkHeight != CHUNK_HEIGHT ) {
+		PrintError( L"Terrain file (height %i) does not match program chunk height (%i)\n", terrainHeader.chunkHeight, CHUNK_HEIGHT );
+		return false;
+	}
+	// Interpret the position table
+	memset( &m_chunkOffsets, -1, sizeof( m_chunkOffsets ) );
+	for( unsigned int i = 0; i < TERRAIN_REGION_SIDE*TERRAIN_REGION_SIDE; i++ ) {
+		if( positionTable.x[i] == -1 || positionTable.y[i] == -1 )
+			continue;
+		m_chunkOffsets[positionTable.x[i]][positionTable.y[i]] = i;
+	}
 	// Create the chunks
 	if( !this->allocateChunks( 2 ) )
 		return false;
@@ -209,8 +266,39 @@ bool CChunkManager::saveTerrainFile( std::string path )
 }
 void CChunkManager::closeTerrainFile()
 {
+	// Close the stream
+	m_chunkDataSize = 0;
+	m_chunkStream.close();
 	// Delete the chunks
 	this->destroyChunks();
+}
+
+unsigned short* CChunkManager::readRawChunkData( glm::ivec2 pos )
+{
+	size_t offset;
+	unsigned short *pData;
+
+	// Read the raw chunk data from the file
+
+	// Make sure its exists
+	if( m_chunkOffsets[pos.x][pos.y] == -1 ) {
+		PrintError( L"Tried to load chunk that does not exist\n" );
+		return NULL;
+	}
+	// Move to the offset
+	offset = sizeof( TerrainSaveHeader ) + sizeof( TerrainPositionTable );
+	offset += m_chunkOffsets[pos.x][pos.y]*CHUNK_BLOCK_COUNT*sizeof( unsigned short );
+	// Make sure its valid
+	if( offset > m_chunkDataSize ) {
+		PrintError( L"Invalid offset in terrain file\n" );
+		return NULL;
+	}
+	m_chunkStream.seekg( offset );
+	// Read the data
+	pData = new unsigned short[CHUNK_BLOCK_COUNT];
+	m_chunkStream.read( reinterpret_cast<char*>(pData), sizeof( unsigned short )*CHUNK_BLOCK_COUNT );
+
+	return pData;
 }
 
 // Returns the index (0 to chunk count)
@@ -230,6 +318,8 @@ CChunk::CChunk() {
 	m_bufferIndex = 0;
 	m_vertexOffset = 0;
 	m_indexOffset = 0;
+	m_vertexCount = 0;
+	m_indexCount = 0;
 }
 CChunk::~CChunk() {
 }
@@ -245,6 +335,8 @@ void CChunk::destroy()
 	m_bufferIndex = 0;
 	m_vertexOffset = 0;
 	m_indexOffset = 0;
+	m_vertexCount = 0;
+	m_indexCount = 0;
 	m_blocks.clear();
 }
 
@@ -269,6 +361,7 @@ bool CChunk::populateVertices()
 	}
 	// Update the data
 	currentVertex = 0;
+	m_vertexCount = 0;
 	for( unsigned int y = 0; y < CHUNK_HEIGHT + 1; y++ ) {
 		for( unsigned int x = 0; x < CHUNK_SIDE_LENGTH + 1; x++ ) {
 			for( unsigned int z = 0; z < CHUNK_SIDE_LENGTH + 1; z++ ) {
@@ -276,6 +369,7 @@ bool CChunk::populateVertices()
 				vertex.pos = glm::ivec3( x, y, z );
 				vertex.color = glm::vec3( 0.5f, (x % 2 == 0) ? 0.0f : 1.0f, (z % 2 != 0) ? 0.0f : 1.0f );
 				pVertices[currentVertex++] = vertex;
+				m_vertexCount++;
 			}
 		}
 	}
@@ -287,6 +381,7 @@ bool CChunk::populateVertices()
 bool CChunk::populateIndices()
 {
 	GLuint currentIndex;
+	size_t currentBlock;
 	unsigned int *pIndices;
 	unsigned int firstIndex;
 	unsigned int layerSize = (CHUNK_SIDE_LENGTH + 1)*(CHUNK_SIDE_LENGTH + 1);
@@ -303,6 +398,8 @@ bool CChunk::populateIndices()
 
 	// Update the data
 	currentIndex = 0;
+	currentBlock = 0;
+	m_indexCount = 0;
 	for( unsigned int y = 0; y < CHUNK_HEIGHT; y++ )
 	{
 		firstIndex = y*layerSize;
@@ -310,6 +407,12 @@ bool CChunk::populateIndices()
 		{
 			for( unsigned int z = 0; z < CHUNK_SIDE_LENGTH; z++ )
 			{
+				if( !m_blocks[currentBlock] ) {
+					firstIndex++;
+					currentBlock++;
+					continue;
+				}
+
 				// BOTTOM
 				pIndices[currentIndex++] = firstIndex;
 				pIndices[currentIndex++] = firstIndex + rowSize + 1;
@@ -353,6 +456,9 @@ bool CChunk::populateIndices()
 				pIndices[currentIndex++] = firstIndex + rowSize + layerSize + 1;
 				pIndices[currentIndex++] = firstIndex + rowSize + 1;
 
+				m_indexCount += 36;
+				currentBlock++;
+
 				firstIndex++;
 			}
 			firstIndex++;
@@ -365,6 +471,20 @@ bool CChunk::populateIndices()
 	return true;
 }
 
+void CChunk::setRawData( unsigned short *pData )
+{
+	for( unsigned int i = 0; i < CHUNK_BLOCK_COUNT; i++ )
+	{
+		if( pData[i] == 0 )
+			m_blocks[i] = false;
+		else
+			m_blocks[i] = true;
+	}
+}
+
 CBlock* CChunk::getBlockAt( glm::vec3 pos ) {
 	return NULL;
+}
+GLuint CChunk::getIndexCount() {
+	return m_indexCount;
 }

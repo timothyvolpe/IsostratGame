@@ -14,3 +14,4 @@
 #define FILESYSTEM_SHADERDIR L"data\\shaders"
 #define FILESYSTEM_CONFIGDIR L"data\\config"
 #define FILESYSTEM_LANGDIR L"data\\lang"
+#define FILESYSTEM_SAVEDIR L"data\\saves"

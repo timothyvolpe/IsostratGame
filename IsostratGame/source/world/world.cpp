@@ -1,6 +1,9 @@
 #include "base.h"
+#include "def.h"
 #include "world\world.h"
 #include "world\chunkmanager.h"
+
+#include <boost\filesystem.hpp>
 
 CWorld::CWorld() {
 	m_pChunkManager = NULL;
@@ -28,6 +31,28 @@ void CWorld::destroyWorld()
 {
 	PrintInfo( L"Destroying world...\n" );
 	DESTROY_DELETE( m_pChunkManager );
+}
+
+bool CWorld::loadSave( std::wstring saveName )
+{
+	boost::filesystem::path fullPath, terrainPath;
+
+	// Get the save folder
+	fullPath = boost::filesystem::current_path();
+	fullPath /= FILESYSTEM_SAVEDIR;
+	fullPath /= saveName;
+
+	PrintInfo( L"Loading save file %s...\n", saveName.c_str() );
+
+	// Load the terrain
+	terrainPath = fullPath / "terrain";
+	terrainPath /= "terrain.sav";
+	if( !m_pChunkManager->openTerrainFile( terrainPath.string() ) ) {
+		PrintError( L"Failed to load save file %s\n", saveName.c_str() );
+		return false;
+	}
+
+	return true;
 }
 
 void CWorld::draw( glm::mat4 projection, glm::mat4 view ) {
