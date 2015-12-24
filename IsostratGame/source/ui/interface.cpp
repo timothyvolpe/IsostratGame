@@ -105,6 +105,7 @@ bool CInterfaceManager::loadScreens()
 	if( pLabel0 ) {
 		pLabel0->setRelativePosition( glm::vec2( 0.0f, 0.0f ) );
 		pLabel0->setRelativeSize( glm::vec2( 0.4f, 0.4f ) );
+		pLabel0->setText( L"FPS: 0" );
 		pHud->addToContainer( pLabel0 );
 		if( !pLabel0->onActivate() )
 			return false;
@@ -169,6 +170,12 @@ void CInterfaceManager::draw( glm::mat4 projection, glm::mat4 view )
 void CInterfaceManager::setDimensions( int width, int height ) {
 	m_width = width;
 	m_height = height;
+}
+int CInterfaceManager::getWidth() {
+	return m_width;
+}
+int CInterfaceManager::getHeight() {
+	return m_height;
 }
 CFontManager* CInterfaceManager::getFontManager() {
 	return m_pFontManager;

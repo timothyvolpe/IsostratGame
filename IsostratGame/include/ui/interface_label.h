@@ -12,6 +12,7 @@ private:
 	bool m_bUpdateText;
 
 	void rebuildTextQuads();
+	void destroyTextQuads();
 public:
 	CInterfaceLabel();
 	~CInterfaceLabel();

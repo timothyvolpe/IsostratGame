@@ -80,7 +80,7 @@ bool CGraphics::initialize()
 
 	// OpenGL attributes
 	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
-	glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+	glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 
 	glEnable( GL_CULL_FACE );
 	glEnable( GL_DEPTH_TEST );

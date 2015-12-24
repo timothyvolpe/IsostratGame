@@ -48,7 +48,8 @@ public:
 typedef struct
 {
 	int width, height;
-	glm::vec2 uv;
+	int advance;
+	glm::vec2 uv, uv_end;
 } FontGlyph;
 
 class CFont
@@ -62,6 +63,7 @@ private:
 		wchar_t charId;
 		int pointSize;
 		int width, height;
+		int advance;
 		GLubyte *pBuffer;
 
 		bool operator<( const GlyphBitmap &rhs ) const { return width*height > rhs.width*rhs.height; }
@@ -71,6 +73,7 @@ private:
 		FontMapNode *pLeft, *pRight;
 		int x, y;
 		int width, height;
+		int advance;
 		wchar_t charId;
 		int pointSize;
 		GLubyte *pBuffer;
@@ -96,5 +99,5 @@ public:
 
 	GLuint getTextureId();
 
-	FontGlyph getGlyph( wchar_t character );
+	FontGlyph getGlyph( int pointSize, wchar_t character );
 };

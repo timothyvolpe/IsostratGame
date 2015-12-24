@@ -74,6 +74,8 @@ public:
 	void draw( glm::mat4 projection, glm::mat4 view );
 
 	void setDimensions( int width, int height );
+	int getWidth();
+	int getHeight();
 	CFontManager* getFontManager();
 	CLocalization* getLocalization();
 

@@ -171,6 +171,8 @@ bool CFont::initializeFont( FT_Library hFreeType, std::wstring fontName, std::un
 				break;
 			}
 
+			int advance = m_fontFace->glyph->metrics.horiAdvance / (m_fontFace->units_per_EM / 72);
+
 			glyphBitmap = m_fontFace->glyph->bitmap;
 
 			// Check the pixel mode
@@ -190,6 +192,7 @@ bool CFont::initializeFont( FT_Library hFreeType, std::wstring fontName, std::un
 			glyphBuffer.height = height;
 			glyphBuffer.pBuffer = new GLubyte[width*height];
 			glyphBuffer.pointSize = (*it2);
+			glyphBuffer.advance = advance;
 			memcpy( glyphBuffer.pBuffer, glyphBitmap.buffer, width*height );
 			glyphList.push_back( glyphBuffer );
 			// Increase required area
@@ -281,6 +284,8 @@ bool CFont::startBinPack( std::vector<GlyphBitmap> glyphList, int width, int hei
 					renderedGlyph.width = (*it)->width;
 					renderedGlyph.height = (*it)->height;
 					renderedGlyph.uv = glm::vec2( (float)(*it)->x / (float)width, (float)(*it)->y / (float)height );
+					renderedGlyph.uv_end = glm::vec2( (float)(*it)->width / (float)width + renderedGlyph.uv.x, (float)(*it)->height / (float)height + renderedGlyph.uv.y );
+					renderedGlyph.advance = (*it)->advance;
 					m_renderedGlyphs[(*it)->pointSize][(*it)->charId] = renderedGlyph;
 				}
 			}
@@ -365,6 +370,7 @@ CFont::FontMapNode* CFont::insertIntoBin( FontMapNode *pNode, GlyphBitmap glyphB
 	// Shrink the node
 	pNode->width = glyphBitmap.width;
 	pNode->height = glyphBitmap.height;
+	pNode->advance = glyphBitmap.advance;
 
 	pNode->charId = glyphBitmap.charId;
 	pNode->pointSize = glyphBitmap.pointSize;
@@ -375,4 +381,14 @@ CFont::FontMapNode* CFont::insertIntoBin( FontMapNode *pNode, GlyphBitmap glyphB
 
 GLuint CFont::getTextureId() {
 	return m_textureId;
+}
+
+FontGlyph CFont::getGlyph( int pointSize, wchar_t character )
+{
+	if( m_renderedGlyphs.find( pointSize ) != m_renderedGlyphs.end() ) {
+		if( m_renderedGlyphs[pointSize].find( character ) != m_renderedGlyphs[pointSize].end() )
+			return m_renderedGlyphs[pointSize][character];
+	}
+	PrintWarn( L"Could not find character glyph in font\n" );
+	return FontGlyph();
 }
