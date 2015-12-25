@@ -141,8 +141,8 @@ bool CFont::initializeFont( FT_Library hFreeType, std::wstring fontName, std::un
 	std::vector<int> pointSizes;
 	pointSizes.push_back( 8 );
 	pointSizes.push_back( 10 );
-	pointSizes.push_back( 16 );
-	pointSizes.push_back( 22 );
+	pointSizes.push_back( 14 );
+	pointSizes.push_back( 20 );
 	pointSizes.push_back( 32 );
 
 	// Load each glyph for each point size
@@ -153,7 +153,7 @@ bool CFont::initializeFont( FT_Library hFreeType, std::wstring fontName, std::un
 		if( bGlyphFailed )
 			break;
 		// Set the face size (16pt)
-		ftError = FT_Set_Char_Size( m_fontFace, 0, (*it2) * 64, 300, 300 );
+		ftError = FT_Set_Char_Size( m_fontFace, 0, (*it2) * 64, 0, 0 );
 		if( ftError ) {
 			PrintWarn( L"Failed to load font \"%s\" (font size, %i)\n", fontName.c_str(), ftError );
 			bGlyphFailed = true;
@@ -171,7 +171,7 @@ bool CFont::initializeFont( FT_Library hFreeType, std::wstring fontName, std::un
 				break;
 			}
 
-			int advance = m_fontFace->glyph->metrics.horiAdvance / (m_fontFace->units_per_EM / 72);
+			int advance = m_fontFace->glyph->metrics.horiAdvance / 64;
 
 			glyphBitmap = m_fontFace->glyph->bitmap;
 

@@ -10,6 +10,7 @@ enum : unsigned char
 };
 
 typedef std::map<std::wstring, std::wstring> FontNameList;
+typedef std::map<std::wstring, std::wstring> LocalizedStringList;
 
 class CLocalization
 {
@@ -18,6 +19,7 @@ private:
 
 	std::wstring m_languageName;
 	FontNameList m_fontNameList;
+	LocalizedStringList m_localizedStrings;
 public:
 	CLocalization();
 	~CLocalization();
@@ -26,6 +28,8 @@ public:
 	void destroy();
 
 	bool loadLanguage( unsigned char language );
+
+	std::wstring localizeString( std::wstring str );
 
 	FontNameList getFontNameList();
 	std::unordered_set<wchar_t> getCacheChars();

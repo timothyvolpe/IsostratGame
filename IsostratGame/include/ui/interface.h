@@ -15,6 +15,7 @@ class CInterfaceBase;
 class CInterfaceRenderable;
 
 class CInterfaceScreen;
+class CInterfaceLabel;
 
 #pragma pack(push, 1)
 typedef struct
@@ -48,6 +49,7 @@ private:
 	CLocalization *m_pLocalization;
 
 	int m_width, m_height;
+	float m_horizDpi, m_vertDpi;
 
 	std::vector<CInterfaceBase*> m_interfaceList;
 	std::vector<CInterfaceRenderable*> m_interfaceRenderableList; // everything in this list is also in the interfacebase one
@@ -62,6 +64,8 @@ private:
 
 	ScreenList m_uiScreens;
 	bool loadScreens();
+
+	CInterfaceLabel *m_pLabel0;
 public:
 	CInterfaceManager();
 	~CInterfaceManager();
@@ -130,6 +134,8 @@ public:
 
 	virtual bool onCreate() = 0;
 	virtual void onDestroy() = 0;
+
+	virtual void onUpdate() {}
 
 	virtual bool onActivate() { return true; };
 

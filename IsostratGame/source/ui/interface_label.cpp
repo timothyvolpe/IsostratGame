@@ -2,6 +2,7 @@
 #include "ui\interface.h"
 #include "ui\interface_label.h"
 #include "ui\font.h"
+#include "ui\localization.h"
 
 CInterfaceLabel::CInterfaceLabel() {
 	m_pQuadPosition = new GLuint;
@@ -26,7 +27,7 @@ void CInterfaceLabel::rebuildTextQuads()
 	CInterfaceManager *pManager = CGame::instance().getInterfaceManager();
 	CFont *pFont;
 	std::vector<InterfaceVertex> vertices;
-	size_t currentVertex;
+	InterfaceVertex currentVertex;
 	glm::vec2 pos;
 	glm::vec2 scaledSize;
 	float offsetx;
@@ -37,26 +38,38 @@ void CInterfaceLabel::rebuildTextQuads()
 	pos = this->getRelativePosition();
 
 	// Create a quad for each character
-	vertices.resize( m_text.size()*4 );
-	currentVertex = 0;
 	offsetx = 0;
 	for( size_t i = 0; i < m_text.length(); i++ )
 	{
-		FontGlyph glyph = pFont->getGlyph( 10, m_text[i] );
+		// Make sure its not a special characters
+		switch( m_text[i] )
+		{
+		case L' ':
+		case L'\x96':
+		case L'\x9':
+		case L'\xA':
+		case L'\xD':
+			continue;
+		}
+		FontGlyph glyph = pFont->getGlyph( 20, m_text[i] );
 
 		scaledSize = glm::vec2( glyph.width, glyph.height ) / glm::vec2( pManager->getWidth(), pManager->getHeight() );
 
-		vertices[currentVertex].relpos = glm::vec2( pos.x + offsetx, pos.y + scaledSize.y );
-		vertices[currentVertex++].tex = glm::vec2( glyph.uv.x, glyph.uv.y );
-		vertices[currentVertex].relpos = glm::vec2( pos.x + offsetx, pos.y );
-		vertices[currentVertex++].tex = glm::vec2( glyph.uv.x, glyph.uv_end.y );
-		vertices[currentVertex].relpos = glm::vec2( pos.x + offsetx + scaledSize.x, pos.y + scaledSize.y );
-		vertices[currentVertex++].tex = glm::vec2( glyph.uv_end.x, glyph.uv.y );
-		vertices[currentVertex].relpos = glm::vec2( pos.x + offsetx + scaledSize.x, pos.y );
-		vertices[currentVertex++].tex = glm::vec2( glyph.uv_end.x, glyph.uv_end.y );
+		currentVertex.relpos = glm::vec2( pos.x + offsetx, pos.y + scaledSize.y );
+		currentVertex.tex = glm::vec2( glyph.uv.x, glyph.uv.y );
+		vertices.push_back( currentVertex );
+		currentVertex.relpos = glm::vec2( pos.x + offsetx, pos.y );
+		currentVertex.tex = glm::vec2( glyph.uv.x, glyph.uv_end.y );
+		vertices.push_back( currentVertex );
+		currentVertex.relpos = glm::vec2( pos.x + offsetx + scaledSize.x, pos.y + scaledSize.y );
+		currentVertex.tex = glm::vec2( glyph.uv_end.x, glyph.uv.y );
+		vertices.push_back( currentVertex );
+		currentVertex.relpos = glm::vec2( pos.x + offsetx + scaledSize.x, pos.y );
+		currentVertex.tex = glm::vec2( glyph.uv_end.x, glyph.uv_end.y );
+		vertices.push_back( currentVertex );
 
-		//offsetx += (float)glyph.advance / (float)pManager->getWidth();
-		offsetx += scaledSize.x;
+		offsetx += (float)glyph.advance / (float)pManager->getWidth();
+		//offsetx += scaledSize.x;
 	}
 	if( !pManager->addQuads( vertices, pFont->getTextureId(), m_pQuadPosition, m_pQuadOffset ) ) {
 		PrintWarn( L"Failed to update label text\n" );
@@ -77,6 +90,14 @@ void CInterfaceLabel::destroyTextQuads()
 	m_vertexCount = 0;
 }
 
+void CInterfaceLabel::onUpdate()
+{
+	if( m_bUpdateText ) {
+		this->rebuildTextQuads();
+		m_bUpdateText = false;
+	}
+}
+
 bool CInterfaceLabel::onActivate()
 {
 	CInterfaceManager *pManager = CGame::instance().getInterfaceManager();
@@ -87,22 +108,6 @@ bool CInterfaceLabel::onActivate()
 		return false;
 
 	this->rebuildTextQuads();
-
-	// Add a quad
-	/*pos = this->getRelativePosition();
-	size = this->getRelativeSize();
-	vertices.resize( 4 );
-	vertices[0].relpos = glm::vec2( pos.x, pos.y + size.y );
-	vertices[0].tex = glm::vec2( 0.0f, 0.0f );
-	vertices[1].relpos = glm::vec2( pos.x, pos.y );
-	vertices[1].tex = glm::vec2( 0.0f, 1.0f );
-	vertices[2].relpos = glm::vec2( pos.x + size.x, pos.y + size.y );
-	vertices[2].tex = glm::vec2( 1.0f, 0.0f );
-	vertices[3].relpos = glm::vec2( pos.x + size.x, pos.y );
-	vertices[3].tex = glm::vec2( 1.0f, 1.0f );
-	if( !pManager->addQuads( vertices, pManager->getFontManager()->getFont( L"DEFAULTFONT" )->getTextureId(), m_pQuadPosition, m_pQuadOffset ) )
-		return false;
-	m_vertexCount = vertices.size();*/
 
 	return true;
 }
@@ -115,12 +120,14 @@ void CInterfaceLabel::onDraw()
 		glActiveTexture( GL_TEXTURE0 );
 		glBindTexture( GL_TEXTURE_2D, 1 );
 		// Draw
-		glDrawArrays( GL_TRIANGLE_STRIP, *(this->m_pQuadOffset), m_vertexCount );
+		glDrawArrays( GL_LINES_ADJACENCY, *(this->m_pQuadOffset), m_vertexCount );
 	}
 }
 
-void CInterfaceLabel::setText( std::wstring text ) {
-	m_text = text;
+void CInterfaceLabel::setText( std::wstring text )
+{
+	// Localize the text
+	m_text = CGame::instance().getInterfaceManager()->getLocalization()->localizeString( text );
 	m_bUpdateText = true;
 }
 std::wstring CInterfaceLabel::getText() {

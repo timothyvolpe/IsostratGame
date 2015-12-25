@@ -20,6 +20,8 @@ public:
 	bool onCreate();
 	void onDestroy();
 
+	void onUpdate();
+
 	bool onActivate();
 
 	void onDraw();

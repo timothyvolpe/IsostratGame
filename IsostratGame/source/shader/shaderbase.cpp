@@ -97,6 +97,7 @@ bool CShaderManager::initialize()
 	shaderList.push_back( std::pair<std::string, GLenum>( "simple", GL_FRAGMENT_SHADER ) ); // 1
 	shaderList.push_back( std::pair<std::string, GLenum>( "chunk", GL_VERTEX_SHADER ) ); // 2
 	shaderList.push_back( std::pair<std::string, GLenum>( "interface", GL_VERTEX_SHADER ) ); // 3
+	shaderList.push_back( std::pair<std::string, GLenum>( "interface", GL_GEOMETRY_SHADER ) ); // 4
 	shaderList.push_back( std::pair<std::string, GLenum>( "interface", GL_FRAGMENT_SHADER ) ); // 5
 	enum {
 		NO_SHADER			= -1,
@@ -104,7 +105,8 @@ bool CShaderManager::initialize()
 		SIMPLE_FRAG			= 1,
 		CHUNK_VERT			= 2,
 		INTERFACE_VERT		= 3,
-		INTERFACE_FRAG		= 4
+		INTERFACE_GEOM		= 4,
+		INTERFACE_FRAG		= 5
 	};
 
 	// Load the shader objects
@@ -132,7 +134,7 @@ bool CShaderManager::initialize()
 	interface_uniforms.push_back( "resolution" );
 	interface_uniforms.push_back( "textureSampler" );
 	interface_uniformBlocks.push_back( std::pair<std::string, GLuint>( "GlobalMatrices", UNIFORMBLOCK_GLOBALMATRICES ) );
-	programDescList[SHADERPROGRAM_INTERFACE] = ShaderProgramDesc( L"INTERFACE", INTERFACE_VERT, NO_SHADER, INTERFACE_FRAG, interface_uniformBlocks, interface_uniforms );
+	programDescList[SHADERPROGRAM_INTERFACE] = ShaderProgramDesc( L"INTERFACE", INTERFACE_VERT, INTERFACE_GEOM, INTERFACE_FRAG, interface_uniformBlocks, interface_uniforms );
 
 	if( !this->loadPrograms( programDescList ) )
 		return false;

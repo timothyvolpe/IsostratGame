@@ -1,5 +1,8 @@
+#pragma warning( disable : 4996 )
+
 #include <boost\filesystem.hpp>
 #include <boost\property_tree\info_parser.hpp>
+#include <boost\algorithm\string.hpp>
 
 #include "base.h"
 #include "def.h"
@@ -19,7 +22,7 @@ void CLocalization::destroy() {
 bool CLocalization::loadLanguage( unsigned char language )
 {
 	boost::filesystem::path langPath;
-	boost::property_tree::wptree fontTree;
+	boost::property_tree::wptree fontTree, stringTree;
 
 	PrintInfo( L"Loading language (%i)...\n", language );
 
@@ -73,12 +76,53 @@ bool CLocalization::loadLanguage( unsigned char language )
 		}
 	}
 	catch( boost::property_tree::ptree_bad_path &e ) {
-		PrintInfo( L"Did not find any font info in the language file (%hs)\n", e.what() );
+		PrintError( L"Did not find any font info in the language file (%hs)\n", e.what() );
+		return false;
+	}
+	// Get the strings
+	try {
+		stringTree = m_langTree.get_child( L"language.strings" );
+		m_localizedStrings.clear();
+		for( const auto &kv : stringTree ) {
+			m_localizedStrings.insert( std::pair<std::wstring, std::wstring>( kv.first.data(), kv.second.data() ) );
+		}
+	}
+	catch( boost::property_tree::ptree_bad_path &e ) {
+		PrintError( L"Failed to read localized strings (%hs)\n", e.what() );
 		return false;
 	}
 
 	return true;
 }
+
+std::wstring CLocalization::localizeString( std::wstring str )
+{
+	std::wstring localized;
+	std::vector<std::wstring> tokens;
+	bool bInPounds;
+
+	// Split into tokens on the #
+	boost::split( tokens, str, boost::is_any_of( L"#" ) );
+	bInPounds = false;
+	localized = L"";
+	for( auto it = tokens.begin(); it != tokens.end(); it++ )
+	{
+		if( !bInPounds )
+			localized += (*it);
+		else {
+			auto localString = m_localizedStrings.find( (*it) );
+			if( localString != m_localizedStrings.end() )
+				localized += (*localString).second;
+			else
+				localized += (*it);
+
+		}
+		bInPounds = !bInPounds;
+	}
+
+	return localized;
+}
+
 
 FontNameList CLocalization::getFontNameList() {
 	return m_fontNameList;
@@ -120,3 +164,5 @@ std::unordered_set<wchar_t> CLocalization::getCacheChars() // Determine what cha
 
 	return cacheChars;
 }
+
+#pragma warning( default : 4996 )

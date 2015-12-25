@@ -14,6 +14,8 @@
 #include <glm\ext.hpp>
 #pragma warning( default: 4996 )
 
+#include <sdl.h>
+
 ///////////////////////
 // CInterfaceManager //
 ///////////////////////
@@ -24,6 +26,8 @@ CInterfaceManager::CInterfaceManager() {
 
 	m_width = 800;
 	m_height = 600;
+	m_horizDpi = 0.0f;
+	m_vertDpi = 0.0f;
 
 	m_interfaceVAO = 0;
 	m_interfaceVBO = 0;
@@ -101,13 +105,13 @@ bool CInterfaceManager::loadScreens()
 		if( !pHud->onActivate() )
 			return false;
 	}
-	pLabel0 = this->createInterfaceObjectRenderable<CInterfaceLabel>();
-	if( pLabel0 ) {
-		pLabel0->setRelativePosition( glm::vec2( 0.0f, 0.0f ) );
-		pLabel0->setRelativeSize( glm::vec2( 0.4f, 0.4f ) );
-		pLabel0->setText( L"FPS: 0" );
-		pHud->addToContainer( pLabel0 );
-		if( !pLabel0->onActivate() )
+	m_pLabel0 = this->createInterfaceObjectRenderable<CInterfaceLabel>();
+	if( m_pLabel0 ) {
+		m_pLabel0->setRelativePosition( glm::vec2( 0.0f, 0.0f ) );
+		m_pLabel0->setRelativeSize( glm::vec2( 0.4f, 0.4f ) );
+		m_pLabel0->setText( L"#DEBUG_FRAMECOUNTER# 0" );
+		pHud->addToContainer( m_pLabel0 );
+		if( !m_pLabel0->onActivate() )
 			return false;
 	}
 	// 2
@@ -140,6 +144,16 @@ void CInterfaceManager::draw( glm::mat4 projection, glm::mat4 view )
 {
 	CShaderManager *pShaderManager = CGame::instance().getGraphics()->getShaderManager();
 	glm::vec2 windowDimensions;
+	std::wstringstream fpsStream;
+
+	// Update FPS
+	fpsStream << L"#DEBUG_FRAMECOUNTER#" << (int)(1 / CGame::instance().getFrameTime());
+	m_pLabel0->setText( fpsStream.str() );
+
+	// Update all the interface controls
+	for( auto it = m_interfaceList.begin(); it != m_interfaceList.end(); it++ ) {
+		(*it)->onUpdate();
+	}
 
 	// Reconstruct quads if needed
 	if( m_bQuadsInvalid )
