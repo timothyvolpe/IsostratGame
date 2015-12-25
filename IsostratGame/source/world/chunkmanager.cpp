@@ -3,11 +3,26 @@
 #pragma warning( default: 4996 )
 
 #include "base.h"
+#include "world\world.h"
 #include "world\chunkmanager.h"
 #include "shader\shaderbase.h"
 #include "graphics.h"
 
 #include "world\block.h"
+
+ChunkVertex GenVertex( glm::ivec3 pos, glm::ivec3 color )
+{
+	ChunkVertex vertex;
+	vertex.x = (unsigned char)pos.x;
+	vertex.y = (unsigned char)pos.y;
+	vertex.z = (unsigned char)pos.z;
+	vertex.w = 1;
+	vertex.r = (unsigned char)color.r;
+	vertex.g = (unsigned char)color.g;
+	vertex.b = (unsigned char)color.b;
+	vertex.a = 1;
+	return vertex;
+}
 
 ///////////////////
 // CChunkManager //
@@ -66,8 +81,8 @@ bool CChunkManager::generateMeshes()
 		// Fill the vertex buffer
 		glBindBuffer( GL_ARRAY_BUFFER, m_chunkVertexBuffers[i] );
 		glBufferData( GL_ARRAY_BUFFER, sizeof( ChunkVertex )*CHUNK_VERTEX_COUNT*m_bufferChunkCounts[i], NULL, GL_DYNAMIC_DRAW );
-		glVertexAttribIPointer( 0, 3, GL_INT, sizeof( ChunkVertex ), (GLvoid*)offsetof( ChunkVertex, pos ) );
-		glVertexAttribPointer( 1, 3, GL_FLOAT, GL_FALSE, sizeof( ChunkVertex ), (GLvoid*)offsetof( ChunkVertex, color ) );
+		glVertexAttribIPointer( 0, 4, GL_UNSIGNED_BYTE, sizeof( ChunkVertex ), (GLvoid*)offsetof( ChunkVertex, x ) );
+		glVertexAttribPointer( 1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof( ChunkVertex ), (GLvoid*)offsetof( ChunkVertex, r ) );
 		glEnableVertexAttribArray( 0 );
 		glEnableVertexAttribArray( 1 );
 		// Fill the index buffer
@@ -117,12 +132,24 @@ void CChunkManager::destroyMeshes()
 
 bool CChunkManager::initialize()
 {
+	// Initialize all the blocks
+	m_pBlockGrass = new CBlock( 1 );
+	m_pBlockGrass->setBlockColor( glm::ivec3( 0, 255, 0) );
+	this->registerBlock( m_pBlockGrass );
+	m_pBlockStone = new CBlock( 2 );
+	m_pBlockStone->setBlockColor( glm::ivec3( 150, 150, 150 ) );
+	this->registerBlock( m_pBlockStone );
+
 	return true;
 }
 void CChunkManager::destroy()
 {
 	// Close the terrain file
 	this->closeTerrainFile();
+	// Destroy the blocks
+	SAFE_DELETE( m_pBlockGrass );
+	SAFE_DELETE( m_pBlockStone );
+	m_blockClasses.clear();
 }
 
 void CChunkManager::draw( glm::mat4 projection, glm::mat4 view )
@@ -162,8 +189,8 @@ void CChunkManager::draw( glm::mat4 projection, glm::mat4 view )
 			// Calculate where in the array to draw
 			chunkStart = chunk*CHUNK_VERTEX_COUNT;
 
-			//glDrawArrays( GL_TRIANGLES, chunkStart, chunkLength );
-			glDrawRangeElements( GL_TRIANGLES, chunkStart, chunkStart + chunkLength, m_chunks[chunkIndex]->getIndexCount(), GL_UNSIGNED_INT, (GLvoid*)(sizeof(unsigned int)*chunk*CHUNK_INDEX_COUNT) );
+			glDrawArrays( GL_TRIANGLES, chunkStart, chunkLength );
+			//glDrawRangeElements( GL_TRIANGLES, chunkStart, chunkStart + chunkLength, m_chunks[chunkIndex]->getIndexCount(), GL_UNSIGNED_INT, (GLvoid*)(sizeof(unsigned int)*chunk*CHUNK_INDEX_COUNT) );
 			chunkIndex++;
 		}
 		chunksRendered += m_bufferChunkCounts[i];
@@ -310,6 +337,18 @@ unsigned int CChunkManager::getChunkIndex( int x, int z ) {
 	return (z*(m_chunkViewDistance * 2 + 1)) + x;
 }
 
+void CChunkManager::registerBlock( CBlock* pBlock ) {
+	m_blockClasses.insert( std::pair<unsigned short, CBlock*>( pBlock->getBlockId(), pBlock ) );
+}
+CBlock* CChunkManager::getBlockById( unsigned short id )
+{
+	auto block = m_blockClasses.find( id );
+	if( block != m_blockClasses.end() )
+		return (*block).second;
+	else
+		return NULL; // air
+}
+
 ////////////
 // CChunk //
 ////////////
@@ -349,7 +388,9 @@ void CChunk::setBufferPosition( int bufferIndex, GLuint vertexOffset, GLuint ind
 bool CChunk::populateVertices()
 {
 	GLuint currentVertex;
+	size_t currentBlock;
 	ChunkVertex *pVertices;
+	glm::ivec3 currentColor;
 
 	// The vertex buffer should already be bound
 
@@ -361,15 +402,69 @@ bool CChunk::populateVertices()
 	}
 	// Update the data
 	currentVertex = 0;
+	currentBlock = 0;
 	m_vertexCount = 0;
-	for( unsigned int y = 0; y < CHUNK_HEIGHT + 1; y++ ) {
+	/*for( unsigned int y = 0; y < CHUNK_HEIGHT + 1; y++ ) {
 		for( unsigned int x = 0; x < CHUNK_SIDE_LENGTH + 1; x++ ) {
 			for( unsigned int z = 0; z < CHUNK_SIDE_LENGTH + 1; z++ ) {
-				ChunkVertex vertex;
-				vertex.pos = glm::ivec3( x, y, z );
-				vertex.color = glm::vec3( 0.5f, (x % 2 == 0) ? 0.0f : 1.0f, (z % 2 != 0) ? 0.0f : 1.0f );
-				pVertices[currentVertex++] = vertex;
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y,z ), glm::ivec3( 200, 200, 200 ) );
 				m_vertexCount++;
+			}
+		}
+	}*/
+	for( unsigned int y = 0; y < CHUNK_HEIGHT; y++ ) {
+		for( unsigned int x = 0; x < CHUNK_SIDE_LENGTH; x++ ) {
+			for( unsigned int z = 0; z < CHUNK_SIDE_LENGTH; z++ ) {
+				if( !m_blocks[currentBlock] ) {
+					currentBlock++;
+					continue;
+				}
+				currentColor = m_blocks[currentBlock]->getBlockColor();
+
+				// TOP
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y+1, z+1 ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y+1, z ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y+1, z ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y+1, z+1 ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y+1, z+1 ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y+1, z ), currentColor );
+				// BOTTOM
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y,	 z ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y,	 z ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y,	 z+1 ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y,	 z ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y,	 z+1 ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y,	 z+1 ), currentColor );
+				// FRONT
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y,	 z+1 ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y+1,z+1 ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y+1,z+1 ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y,	 z+1 ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y+1,z+1 ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y,	 z+1 ), currentColor );
+				// BACK
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y+1,z ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y+1,z ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y,	 z ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y,	 z ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y+1,z ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y,	 z ), currentColor );
+				// RIGHT
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y,	 z ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y+1,z ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y+1,z+1 ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y,	 z ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y+1,z+1 ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y,	 z+1 ), currentColor );
+				// LEFT
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y+1,z+1 ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y+1,z ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y,	 z ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y,	 z+1 ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y+1,z+1 ), currentColor );
+				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y,	 z ), currentColor );
+
+				currentBlock++;
 			}
 		}
 	}
@@ -473,12 +568,10 @@ bool CChunk::populateIndices()
 
 void CChunk::setRawData( unsigned short *pData )
 {
-	for( unsigned int i = 0; i < CHUNK_BLOCK_COUNT; i++ )
-	{
-		if( pData[i] == 0 )
-			m_blocks[i] = false;
-		else
-			m_blocks[i] = true;
+	CChunkManager *pChunkManager = CGame::instance().getGraphics()->getWorld()->getChunkManager();
+
+	for( unsigned int i = 0; i < CHUNK_BLOCK_COUNT; i++ ) {
+		m_blocks[i] = pChunkManager->getBlockById( pData[i] );
 	}
 }
 

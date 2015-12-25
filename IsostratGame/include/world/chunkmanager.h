@@ -4,12 +4,13 @@
 #include <vector>
 #include <glm\glm.hpp>
 #include <iostream>
+#include <map>
 
 #define CHUNK_GRID_SIZE 0.25f
 #define CHUNK_SIDE_LENGTH 16 // in grid squares
 #define CHUNK_HEIGHT 16 // in grid squares
 #define CHUNK_BLOCK_COUNT CHUNK_SIDE_LENGTH*CHUNK_SIDE_LENGTH*CHUNK_HEIGHT
-#define CHUNK_VERTEX_COUNT (CHUNK_SIDE_LENGTH+1)*(CHUNK_SIDE_LENGTH+1)*(CHUNK_HEIGHT+1)
+#define CHUNK_VERTEX_COUNT CHUNK_BLOCK_COUNT*36 //(CHUNK_SIDE_LENGTH+1)*(CHUNK_SIDE_LENGTH+1)*(CHUNK_HEIGHT+1)
 #define CHUNK_INDEX_COUNT (CHUNK_SIDE_LENGTH*CHUNK_SIDE_LENGTH*CHUNK_HEIGHT*36)
 
 #define CHUNK_BATCH_SIZE 3*1024*1024 // max size of a single chunk vertex buffer
@@ -25,8 +26,8 @@ typedef unsigned char ChunkHeight;
 #pragma pack(push, 1)
 typedef struct
 {
-	glm::ivec3 pos;
-	glm::vec3 color;
+	unsigned char x, y, z, w;
+	unsigned char r, g, b, a;
 } ChunkVertex;
 
 typedef struct
@@ -43,6 +44,8 @@ typedef struct
 } TerrainPositionTable;
 #pragma pack(pop, 1)
 
+ChunkVertex GenVertex( glm::ivec3 pos, glm::ivec3 color );
+
 class CChunk;
 class CBlock;
 
@@ -53,6 +56,8 @@ class CBlock;
 class CChunkManager
 {
 private:
+	typedef std::map<unsigned short, CBlock*> BlockIdList;
+
 	unsigned char m_chunkViewDistance;
 	
 	std::vector<GLuint> m_chunkVertexArrays;
@@ -68,6 +73,8 @@ private:
 	std::vector<CChunk*> m_chunks;
 	glm::ivec2 m_renderPos;
 
+	BlockIdList m_blockClasses;
+
 	unsigned int m_chunkCount;
 
 	bool m_bUpdateScale;
@@ -80,6 +87,9 @@ private:
 
 	unsigned short* readRawChunkData( glm::ivec2 pos );
 public:
+	CBlock *m_pBlockGrass;
+	CBlock *m_pBlockStone;
+
 	CChunkManager();
 	~CChunkManager();
 
@@ -93,6 +103,9 @@ public:
 	bool openTerrainFile( std::string path );
 	bool saveTerrainFile( std::string path );
 	void closeTerrainFile();
+
+	void registerBlock( CBlock* pBlock );
+	CBlock* getBlockById( unsigned short id );
 };
 
 ////////////
@@ -102,7 +115,7 @@ public:
 class CChunk
 {
 private:
-	typedef std::vector<bool> BlockList;
+	typedef std::vector<CBlock*> BlockList;
 
 	BlockList m_blocks;
 
