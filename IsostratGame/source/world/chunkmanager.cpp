@@ -46,6 +46,7 @@ bool CChunkManager::generateMeshes()
 	int chunkSize;
 	int bufferCount;
 	unsigned int chunksPerBuffer;
+	size_t currentChunk;
 
 	// Determine how many buffers we need
 	chunkSize = CHUNK_VERTEX_COUNT*sizeof( ChunkVertex );
@@ -91,6 +92,7 @@ bool CChunkManager::generateMeshes()
 	}
 
 	// Fill the mesh for each chunk
+	currentChunk = 0;
 	for( int i = 0; i < bufferCount; i++ )
 	{
 		glBindVertexArray( m_chunkVertexArrays[i] );
@@ -98,15 +100,18 @@ bool CChunkManager::generateMeshes()
 		glBindBuffer( GL_ARRAY_BUFFER, m_chunkVertexBuffers[i] );
 		for( GLuint chunk = 0; chunk < m_bufferChunkCounts[i]; chunk++ ) {
 			// Set the buffer position
-			m_chunks[chunk]->setBufferPosition( i, chunk*CHUNK_VERTEX_COUNT, chunk*CHUNK_INDEX_COUNT );
-			if( !m_chunks[chunk]->populateVertices() )
+			m_chunks[currentChunk]->setBufferPosition( i, chunk*CHUNK_VERTEX_COUNT, chunk*CHUNK_INDEX_COUNT );
+			if( !m_chunks[currentChunk]->populateVertices() )
 				return false;
+			currentChunk++;
 		}
+		currentChunk-=m_bufferChunkCounts[i];
 		// Do all index data for this buffer
 		glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, m_chunkIndexBuffers[i] );
 		for( GLuint chunk = 0; chunk < m_bufferChunkCounts[i]; chunk++ ) {
-			if( !m_chunks[chunk]->populateIndices() )
+			if( !m_chunks[currentChunk]->populateIndices() )
 				return false;
+			currentChunk++;
 		}
 	}
 
