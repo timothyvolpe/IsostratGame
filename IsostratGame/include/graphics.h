@@ -22,6 +22,9 @@ private:
 	CCamera *m_pCamera;
 
 	glm::mat4 m_projectionMatrix, m_orthoMatrix;
+	float m_nearZ, m_farZ;
+	float m_fov;
+	float m_ratio;
 public:
 	CGraphics();
 	~CGraphics();

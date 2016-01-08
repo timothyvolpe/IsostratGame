@@ -14,6 +14,7 @@
 #include "debugrender.h"
 #include "world\world.h"
 #include "ui\interface.h"
+#include "input.h"
 
 CGraphics::CGraphics() {
 	m_pSDLWindow = NULL;
@@ -27,6 +28,8 @@ CGraphics::CGraphics() {
 
 	m_projectionMatrix = glm::mat4( 1.0f );
 	m_orthoMatrix = glm::mat4( 1.0f );
+
+	m_farZ = 0.0f;
 }
 CGraphics::~CGraphics() {
 }
@@ -125,6 +128,8 @@ void CGraphics::destroy()
 	DESTROY_DELETE( m_pWorld );
 	// Destory camera
 	DESTROY_DELETE( m_pCamera );
+	// Destroy debug renderer
+	DESTROY_DELETE( m_pDebugRender );
 	// Destroy the shaders
 	DESTROY_DELETE( m_pShaderManager );
 	// Destroy the graphics
@@ -145,6 +150,9 @@ void CGraphics::draw()
 	// Update the camera
 	viewMatrix = m_pCamera->update();
 	ortherViewMatrix = glm::lookAt( glm::vec3( 0.0f, 0.0f, 1.0f ), glm::vec3( 0.0f, 0.0f, 0.0f ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
+	// Update frustrum test
+	if( CGame::instance().getInput()->isKeyPress( CGame::instance().getConfigLoader()->getKeybind( KEYBIND_SET_FRUSTRUM ) ) )
+		m_pCamera->getFrustum()->setFrustum( m_pCamera->getEyePosition(), m_projectionMatrix*viewMatrix, m_nearZ, m_farZ, m_fov, m_ratio );
 
 	// Draw the world
 	m_pWorld->draw( m_projectionMatrix, viewMatrix );
@@ -162,7 +170,11 @@ void CGraphics::draw()
 }
 
 void CGraphics::calculateProjection( int width, int height, float fov, float zFar ) {
-	m_projectionMatrix = glm::perspective( 45.0f, (float)width / (float)height, 0.01f, 100.0f );
+	m_nearZ = 0.01f;
+	m_farZ = zFar;
+	m_fov = fov;
+	m_ratio = (float)width / (float)height;
+	m_projectionMatrix = glm::perspective( m_fov, m_ratio, m_nearZ, m_farZ );
 	m_orthoMatrix = glm::ortho( 0.0f, (float)width, 0.0f, (float)height, 0.1f, LAYER_SIZE*255 );
 }
 

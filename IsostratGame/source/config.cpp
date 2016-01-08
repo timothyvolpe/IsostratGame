@@ -32,6 +32,7 @@ bool CConfigLoader::saveConfig()
 	m_xmlTree.put( "GameConfig.Keybinds.Run", m_keybinds[KEYBIND_RUN] );
 	m_xmlTree.put( "GameConfig.Keybinds.Crouch", m_keybinds[KEYBIND_WALK] );
 	m_xmlTree.put( "GameConfig.Keybinds.ToggleDebugDraw", m_keybinds[KEYBIND_TOGGLE_DEBUGDRAW] );
+	m_xmlTree.put( "GameConfig.Keybinds.SetFrustrum", m_keybinds[KEYBIND_SET_FRUSTRUM] );
 
 	// Make sure the folder exists
 	configPath = boost::filesystem::current_path();
@@ -84,6 +85,7 @@ bool CConfigLoader::initializeAndLoad()
 	m_keybinds[KEYBIND_RUN] = m_xmlTree.get( "GameConfig.Keybinds.Run", (unsigned short)SDL_SCANCODE_LSHIFT );
 	m_keybinds[KEYBIND_WALK] = m_xmlTree.get( "GameConfig.Keybinds.Crouch", (unsigned short)SDL_SCANCODE_LCTRL );
 	m_keybinds[KEYBIND_TOGGLE_DEBUGDRAW] = m_xmlTree.get( "GameConfig.Keybinds.ToggleDebugDraw", (unsigned short)SDL_SCANCODE_F2 );
+	m_keybinds[KEYBIND_SET_FRUSTRUM] = m_xmlTree.get( "GameConfig.Keybinds.SetFrustrum", (unsigned short)SDL_SCANCODE_F3 );
 
 	return true;
 }

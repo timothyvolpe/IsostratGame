@@ -4,8 +4,9 @@
 #include <vector>
 #include <glm\glm.hpp>
 
-#define DEBUG_COLOR_CHUNK_INACTIVE glm::vec3( 0.6f, 0.83921568627f, 1.0f )
-#define DEBUG_COLOR_CHUNK_ACTIVE glm::vec3( 0.0f,  0.59607843137f, 1.0f )
+#define DEBUG_COLOR_CHUNK_INACTIVE glm::vec3( 0.6f, 0.83921568627f, 1.0f ) // 153, 214, 255
+#define DEBUG_COLOR_CHUNK_ACTIVE glm::vec3( 0.0f,  0.59607843137f, 1.0f ) // 0, 152, 255
+#define DEBUG_COLOR_FRUSTRUM glm::vec3( 1.0f, 0.74901960784f, 0.0f ) // 255, 191, 0
 
 #pragma pack( push, 1 )
 typedef struct 
