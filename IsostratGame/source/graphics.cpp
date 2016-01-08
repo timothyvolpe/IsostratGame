@@ -11,6 +11,7 @@
 #include "config.h"
 #include "shader\shaderbase.h"
 #include "camera.h"
+#include "debugrender.h"
 #include "world\world.h"
 #include "ui\interface.h"
 
@@ -20,6 +21,7 @@ CGraphics::CGraphics() {
 
 	m_pShaderManager = NULL;
 	m_pWorld = NULL;
+	m_pDebugRender = NULL;
 
 	m_pCamera = NULL;
 
@@ -76,7 +78,7 @@ bool CGraphics::initialize()
 	// Print some GL information
 	PrintInfo( L"Graphics Information:\n > GL Version: %hs\n > GLSL Version: %hs\n > Hardware Vendor: %hs\n > Renderer: %hs\n", glGetString( GL_VERSION ), glGetString( GL_SHADING_LANGUAGE_VERSION ), glGetString( GL_VENDOR ), glGetString( GL_RENDERER ) );
 
-	SDL_GL_SetSwapInterval( 1 );
+	SDL_GL_SetSwapInterval( 0 ); // set to 1 for vsync
 
 	// OpenGL attributes
 	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
@@ -96,6 +98,11 @@ bool CGraphics::initialize()
 	// Create the camera
 	m_pCamera = new CCamera();
 	if( !m_pCamera->initialize() )
+		return false;
+	
+	// Create the debug renderer
+	m_pDebugRender = new CDebugRender();
+	if( !m_pDebugRender->initialize() )
 		return false;
 
 	// Create the world
@@ -141,6 +148,8 @@ void CGraphics::draw()
 
 	// Draw the world
 	m_pWorld->draw( m_projectionMatrix, viewMatrix );
+	// Draw the debug data
+	m_pDebugRender->draw( m_projectionMatrix, viewMatrix );
 	// Draw the interface
 	CGame::instance().getInterfaceManager()->draw( m_orthoMatrix, ortherViewMatrix );
 
@@ -166,4 +175,10 @@ CShaderManager* CGraphics::getShaderManager() {
 }
 CWorld* CGraphics::getWorld() {
 	return m_pWorld;
+}
+CDebugRender* CGraphics::getDebugRender() {
+	return m_pDebugRender;
+}
+CCamera* CGraphics::getCamera() {
+	return m_pCamera;
 }

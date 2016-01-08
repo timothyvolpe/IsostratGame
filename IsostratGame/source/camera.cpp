@@ -15,7 +15,7 @@ CCamera::CCamera()
 {
 	m_viewMatrix = glm::mat4( 1.0f );
 
-	m_eyePosition = glm::vec3( 0.0f, 0.0f, -2.0f );
+	m_eyePosition = glm::vec3( 0.0f, 05.0f, 0.0f );
 
 	m_cameraRight = CCamera::CameraRight;
 	m_cameraUp = CCamera::CameraUp;
@@ -84,19 +84,24 @@ glm::mat4 CCamera::update()
 
 	// Move the camera
 	if( pInput->isKeyHeld( pConfig->getKeybind( KEYBIND_WALK_FORWARD ) ) )
-		m_eyePosition += -m_cameraForward * moveSpeed;
-	if( pInput->isKeyHeld( pConfig->getKeybind( KEYBIND_WALK_BACKWARD ) ) )
 		m_eyePosition += m_cameraForward * moveSpeed;
-	if( pInput->isKeyHeld( pConfig->getKeybind( KEYBIND_STRAFE_LEFT ) ) )
-		m_eyePosition += m_cameraRight * moveSpeed;
+	if( pInput->isKeyHeld( pConfig->getKeybind( KEYBIND_WALK_BACKWARD ) ) )
+		m_eyePosition += -m_cameraForward * moveSpeed;
 	if( pInput->isKeyHeld( pConfig->getKeybind( KEYBIND_STRAFE_RIGHT ) ) )
+		m_eyePosition += m_cameraRight * moveSpeed;
+	if( pInput->isKeyHeld( pConfig->getKeybind( KEYBIND_STRAFE_LEFT ) ) )
 		m_eyePosition += -m_cameraRight * moveSpeed;
+	
 
-	m_viewMatrix = glm::translate( m_viewMatrix, m_eyePosition );
+	m_viewMatrix = glm::translate( m_viewMatrix, -m_eyePosition );
 
 	return m_viewMatrix;
 }
 
 glm::mat4 CCamera::getViewMatrix() {
 	return m_viewMatrix;
+}
+
+glm::vec3 CCamera::getEyePosition() {
+	return m_eyePosition;
 }

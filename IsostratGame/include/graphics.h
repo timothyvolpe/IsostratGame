@@ -7,6 +7,7 @@
 class CShaderManager;
 class CCamera;
 class CWorld;
+class CDebugRender;
 
 class CGraphics
 {
@@ -16,6 +17,7 @@ private:
 
 	CShaderManager *m_pShaderManager;
 	CWorld *m_pWorld;
+	CDebugRender *m_pDebugRender;
 	
 	CCamera *m_pCamera;
 
@@ -35,4 +37,6 @@ public:
 
 	CShaderManager* getShaderManager();
 	CWorld* getWorld();
+	CDebugRender* getDebugRender();
+	CCamera* getCamera();
 };

@@ -8,12 +8,12 @@
 
 #define CHUNK_GRID_SIZE 0.25f
 #define CHUNK_SIDE_LENGTH 16 // in grid squares
-#define CHUNK_HEIGHT 16 // in grid squares
+#define CHUNK_HEIGHT 32 // in grid squares
 #define CHUNK_BLOCK_COUNT CHUNK_SIDE_LENGTH*CHUNK_SIDE_LENGTH*CHUNK_HEIGHT
 #define CHUNK_VERTEX_COUNT CHUNK_BLOCK_COUNT*36 //(CHUNK_SIDE_LENGTH+1)*(CHUNK_SIDE_LENGTH+1)*(CHUNK_HEIGHT+1)
 #define CHUNK_INDEX_COUNT (CHUNK_SIDE_LENGTH*CHUNK_SIDE_LENGTH*CHUNK_HEIGHT*36)
 
-#define CHUNK_BATCH_SIZE 3*1024*1024 // max size of a single chunk vertex buffer
+#define CHUNK_BATCH_SIZE 6*1024*1024 // max size of a single chunk vertex buffer
 
 #define TERRAIN_VERSION_A 0
 #define TERRAIN_VERSION_B 3
@@ -49,6 +49,16 @@ ChunkVertex GenVertex( glm::ivec3 pos, glm::ivec3 color );
 class CChunk;
 class CBlock;
 
+enum : char
+{
+	CHUNK_DIRECTION_UP,
+	CHUNK_DIRECTION_DOWN,
+	CHUNK_DIRECTION_FRONT,
+	CHUNK_DIRECTION_BACK,
+	CHUNK_DIRECTION_LEFT,
+	CHUNK_DIRECTION_RIGHT
+};
+
 ///////////////////
 // CChunkManager //
 ///////////////////
@@ -57,6 +67,7 @@ class CChunkManager
 {
 private:
 	typedef std::map<unsigned short, CBlock*> BlockIdList;
+	typedef std::vector<std::vector<CChunk*>> ChunkVector;
 
 	unsigned char m_chunkViewDistance;
 	
@@ -71,6 +82,9 @@ private:
 	int m_chunkOffsets[TERRAIN_REGION_SIDE][TERRAIN_REGION_SIDE];
 
 	std::vector<CChunk*> m_chunks;
+	ChunkVector m_activeChunks;
+
+	glm::vec2 m_eyePos;
 	glm::ivec2 m_renderPos;
 
 	BlockIdList m_blockClasses;
@@ -84,6 +98,8 @@ private:
 
 	bool generateMeshes();
 	void destroyMeshes();
+
+	void sortChunkList();
 
 	unsigned short* readRawChunkData( glm::ivec2 pos );
 public:
@@ -106,6 +122,8 @@ public:
 
 	void registerBlock( CBlock* pBlock );
 	CBlock* getBlockById( unsigned short id );
+
+	CChunk* getChunkNeighbor( glm::ivec2 vectorPos, char direction );
 };
 
 ////////////
@@ -117,9 +135,11 @@ class CChunk
 private:
 	typedef std::vector<CBlock*> BlockList;
 
+	glm::ivec2 m_vectorPos;
+
 	BlockList m_blocks;
 
-	int m_bufferIndex;
+	size_t m_bufferIndex;
 	GLuint m_vertexOffset, m_indexOffset;
 	GLuint m_vertexCount, m_indexCount;
 public:
@@ -128,7 +148,7 @@ public:
 
 	void setRawData( unsigned short *pData );
 
-	void setBufferPosition( int bufferIndex, GLuint vertexOffset, GLuint indexOffset );
+	void setBufferPosition( glm::ivec2 vectorPos, size_t bufferIndex, GLuint vertexOffset, GLuint indexOffset );
 
 	bool populateVertices();
 	bool populateIndices();
@@ -136,6 +156,22 @@ public:
 	bool initialize();
 	void destroy();
 
+	bool isBlockVisible( glm::vec3 pos );
+	bool isBlockVisible( size_t index );
+
+	size_t getBlockIndex( glm::vec3 pos );
+	CBlock* getBlockNeighbor( glm::vec3 pos, char direction );
+	CBlock* getBlockNeighbor( size_t index, char direction );
+	CBlock* getBlockAt( size_t index );
 	CBlock* getBlockAt( glm::vec3 pos );
 	GLuint getIndexCount();
+
+	glm::ivec2 getChunkVectorPos();
+	size_t getBufferIndex();
+	GLuint getVertexOffset();
+	GLuint getVertexCount();
+};
+
+struct ChunkComparator {
+	bool operator() ( CChunk* pOne, CChunk* pTwo ) { return (pOne->getBufferIndex() < pTwo->getBufferIndex()); }
 };

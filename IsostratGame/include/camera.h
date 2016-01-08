@@ -26,4 +26,6 @@ public:
 	glm::mat4 update();
 
 	glm::mat4 getViewMatrix();
+
+	glm::vec3 getEyePosition();
 };
