@@ -384,10 +384,10 @@ CChunk* CChunkManager::getChunkNeighbor( glm::ivec2 vectorPos, char direction )
 		neighborPos = vectorPos - glm::ivec2( 1, 0 );
 		break;
 	case CHUNK_DIRECTION_FRONT:
-		neighborPos = vectorPos + glm::ivec2( 0, 1 );
+		neighborPos = vectorPos - glm::ivec2( 0, 1 );
 		break;
 	case CHUNK_DIRECTION_BACK:
-		neighborPos = vectorPos - glm::ivec2( 0, 1 );
+		neighborPos = vectorPos + glm::ivec2( 0, 1 );
 		break;
 	default:
 		PrintWarn( L"Unknown block direction to getChunkNeighbor\n" );
@@ -464,8 +464,8 @@ bool CChunk::populateVertices()
 	currentBlock = 0;
 	m_vertexCount = 0;
 	for( unsigned int y = 0; y < CHUNK_HEIGHT; y++ ) {
-		for( unsigned int x = 0; x < CHUNK_SIDE_LENGTH; x++ ) {
-			for( unsigned int z = 0; z < CHUNK_SIDE_LENGTH; z++ ) {
+		for( unsigned int z = 0; z < CHUNK_SIDE_LENGTH; z++ ) {
+			for( unsigned int x = 0; x < CHUNK_SIDE_LENGTH; x++ ) {
 				if( !this->isBlockVisible( currentBlock ) ) {
 					currentBlock++;
 					continue;
@@ -657,40 +657,48 @@ CBlock* CChunk::getBlockNeighbor( size_t index, char direction )
 	size_t neighborIndex;
 	int row, layer;
 
-	row = (int)(index / CHUNK_SIDE_LENGTH);
+	//row = (int)(index / CHUNK_SIDE_LENGTH);
 	layer = (int)(index / (CHUNK_SIDE_LENGTH*CHUNK_SIDE_LENGTH));
+	row = (int)(index - layer*(CHUNK_SIDE_LENGTH*CHUNK_SIDE_LENGTH)) / CHUNK_SIDE_LENGTH;
+
 	switch( direction )
 	{
-	case CHUNK_DIRECTION_FRONT:
+	case CHUNK_DIRECTION_RIGHT:
 		// if its at the edge of the chunk
-		if( row == CHUNK_SIDE_LENGTH-1 ) {
+		if( index % CHUNK_SIDE_LENGTH == (CHUNK_SIDE_LENGTH-1) ) {
+			pNeighbor = pManager->getChunkNeighbor( m_vectorPos, CHUNK_DIRECTION_RIGHT );
+			if( pNeighbor )
+				return pNeighbor->getBlockAt( index - CHUNK_SIDE_LENGTH-1 );
 			return NULL; 
 		}
 		neighborIndex = index+1;
 		break;
-	case CHUNK_DIRECTION_BACK:
+	case CHUNK_DIRECTION_LEFT:
 		// if its at the edge of the chunk
-		if( row == 0 ) {
+		if( index % CHUNK_SIDE_LENGTH == 0 ) {
+			pNeighbor = pManager->getChunkNeighbor( m_vectorPos, CHUNK_DIRECTION_LEFT );
+			if( pNeighbor )
+				return pNeighbor->getBlockAt( index + CHUNK_SIDE_LENGTH-1 );
 			return NULL;
-		}
+		} 
 		neighborIndex = index-1;
 		break;
-	case CHUNK_DIRECTION_RIGHT:
+	case CHUNK_DIRECTION_BACK:
 		// if its at the edge of the chunk
-		if( index % CHUNK_SIDE_LENGTH == CHUNK_SIDE_LENGTH-1 ) {
-			pNeighbor = pManager->getChunkNeighbor( m_vectorPos, CHUNK_DIRECTION_FRONT );
+		if( row == CHUNK_SIDE_LENGTH-1 ) { //  
+			pNeighbor = pManager->getChunkNeighbor( m_vectorPos, CHUNK_DIRECTION_BACK );
 			if( pNeighbor )
-				return pNeighbor->getBlockAt( index - CHUNK_SIDE_LENGTH-1 );
+				return pNeighbor->getBlockAt( index - CHUNK_SIDE_LENGTH*(CHUNK_SIDE_LENGTH-1) );
 			return NULL;
 		}
 		neighborIndex = index+CHUNK_SIDE_LENGTH;
 		break;
-	case CHUNK_DIRECTION_LEFT:
+	case CHUNK_DIRECTION_FRONT:
 		// if its at the edge of the chunk
-		if( index % CHUNK_SIDE_LENGTH == 0 ) {
-			pNeighbor = pManager->getChunkNeighbor( m_vectorPos, CHUNK_DIRECTION_BACK );
+		if( row == 0 ) { //  
+			pNeighbor = pManager->getChunkNeighbor( m_vectorPos, CHUNK_DIRECTION_FRONT );
 			if( pNeighbor )
-				return pNeighbor->getBlockAt( index + CHUNK_SIDE_LENGTH-1 );
+				return pNeighbor->getBlockAt( index + CHUNK_SIDE_LENGTH*(CHUNK_SIDE_LENGTH-1) );
 			return NULL;
 		}
 		neighborIndex = index-CHUNK_SIDE_LENGTH;
