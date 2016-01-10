@@ -7,7 +7,7 @@ language "en"
 	}
 	fonts
 	{
-		DEFAULTFONT "arial.ttf"
+		DEFAULTFONT "cour.ttf"
 	}
 
 	strings

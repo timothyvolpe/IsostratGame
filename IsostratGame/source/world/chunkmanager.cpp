@@ -38,7 +38,6 @@ CChunkManager::CChunkManager()
 	m_bUpdateScale = true;
 	m_chunkDataSize = 0;
 
-	m_eyePos = glm::vec2( 0.0f, 0.0f );
 	m_renderPos = glm::ivec2( 13, 13 );
 }
 CChunkManager::~CChunkManager() {
@@ -142,6 +141,15 @@ void CChunkManager::destroyMeshes()
 	m_chunkCount = 0;
 }
 
+void CChunkManager::activateChunks( char direction )
+{
+	switch( direction )
+	{
+	case CHUNK_DIRECTION_FRONT:
+		break;
+	}
+}
+
 bool CChunkManager::initialize()
 {
 	// Initialize all the blocks
@@ -174,6 +182,7 @@ void CChunkManager::draw( glm::mat4 projection, glm::mat4 view )
 	glm::vec3 chunkOffset, chunkPos;
 	glm::ivec2 chunkVectorPos;
 	size_t currentBufferIndex;
+	char movementDirection;
 
 	// use the chunk shader program
 	pShaderManager->getProgram( SHADERPROGRAM_CHUNK )->bind();
@@ -184,10 +193,13 @@ void CChunkManager::draw( glm::mat4 projection, glm::mat4 view )
 
 	// Calculate the chunk that is under the eye
 	eyePos = CGame::instance().getGraphics()->getCamera()->getEyePosition();
-	tempRenderPos = glm::ivec2( (CHUNK_GRID_SIZE*CHUNK_SIDE_LENGTH)/eyePos.x, (CHUNK_GRID_SIZE*CHUNK_SIDE_LENGTH)/eyePos.z );
+	tempRenderPos = glm::ivec2( (int)floor( eyePos.x/(float)(CHUNK_GRID_SIZE*CHUNK_SIDE_LENGTH) ), (int)floor( eyePos.z/(float)(CHUNK_GRID_SIZE*CHUNK_SIDE_LENGTH) ) );
 	// Check if its different
 	if( tempRenderPos != m_renderPos ) {
+		if( tempRenderPos.x == m_renderPos.x && tempRenderPos.y > m_renderPos.y )
+			movementDirection = CHUNK_DIRECTION_FRONT;
 		m_renderPos = tempRenderPos;
+		this->activateChunks( movementDirection );
 	}
 
 	// Render each chunk
@@ -201,7 +213,11 @@ void CChunkManager::draw( glm::mat4 projection, glm::mat4 view )
 		}
 		// Update matrices
 		chunkVectorPos = (*it)->getChunkVectorPos();
-		chunkPos = glm::vec3( chunkVectorPos.x*CHUNK_SIDE_LENGTH*CHUNK_GRID_SIZE, 0.0f, chunkVectorPos.y*CHUNK_SIDE_LENGTH*CHUNK_GRID_SIZE )+chunkOffset;
+		chunkPos = glm::vec3( 
+			(chunkVectorPos.x*CHUNK_SIDE_LENGTH*CHUNK_GRID_SIZE) + (m_renderPos.x * CHUNK_SIDE_LENGTH*CHUNK_GRID_SIZE), 
+			0.0f, 
+			(chunkVectorPos.y*CHUNK_SIDE_LENGTH*CHUNK_GRID_SIZE) + (m_renderPos.y * CHUNK_SIDE_LENGTH*CHUNK_GRID_SIZE)  
+			)+chunkOffset;
 		modelMatrix = glm::translate( glm::mat4( 1.0f ), chunkPos );
 		pShaderManager->m_ubGlobalMatrices.mvp = projection * view * modelMatrix;
 		pShaderManager->updateUniformBlock( UNIFORMBLOCK_GLOBALMATRICES );
@@ -465,7 +481,8 @@ bool CChunk::populateVertices()
 	m_vertexCount = 0;
 	for( unsigned int y = 0; y < CHUNK_HEIGHT; y++ ) {
 		for( unsigned int z = 0; z < CHUNK_SIDE_LENGTH; z++ ) {
-			for( unsigned int x = 0; x < CHUNK_SIDE_LENGTH; x++ ) {
+			for( unsigned int x = 0; x < CHUNK_SIDE_LENGTH; x++ )
+			{
 				if( !this->isBlockVisible( currentBlock ) ) {
 					currentBlock++;
 					continue;
@@ -668,7 +685,7 @@ CBlock* CChunk::getBlockNeighbor( size_t index, char direction )
 		if( index % CHUNK_SIDE_LENGTH == (CHUNK_SIDE_LENGTH-1) ) {
 			pNeighbor = pManager->getChunkNeighbor( m_vectorPos, CHUNK_DIRECTION_RIGHT );
 			if( pNeighbor )
-				return pNeighbor->getBlockAt( index - CHUNK_SIDE_LENGTH-1 );
+				return pNeighbor->getBlockAt( index - (CHUNK_SIDE_LENGTH-1) );
 			return NULL; 
 		}
 		neighborIndex = index+1;

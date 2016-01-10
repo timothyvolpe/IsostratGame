@@ -84,8 +84,7 @@ private:
 	std::vector<CChunk*> m_chunks;
 	ChunkVector m_activeChunks;
 
-	glm::vec2 m_eyePos;
-	glm::ivec2 m_renderPos;
+	glm::ivec2 m_renderPos; // the chunk the eye is in
 
 	BlockIdList m_blockClasses;
 
@@ -99,7 +98,7 @@ private:
 	bool generateMeshes();
 	void destroyMeshes();
 
-	void sortChunkList();
+	void activateChunks( char direction );
 
 	unsigned short* readRawChunkData( glm::ivec2 pos );
 public:
