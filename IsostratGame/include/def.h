@@ -1,5 +1,7 @@
 #pragma once
 
+#define GAME_VERSION 17
+
 #define EXTERNAL_DEBUG_CONSOLE
 
 #define WINDOW_TITLE L"Isostrat Game"
@@ -15,3 +17,4 @@
 #define FILESYSTEM_CONFIGDIR L"data\\config"
 #define FILESYSTEM_LANGDIR L"data\\lang"
 #define FILESYSTEM_SAVEDIR L"data\\saves"
+#define FILESYSTEM_LUADIR L"data\\lua"

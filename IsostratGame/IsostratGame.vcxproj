@@ -71,17 +71,17 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>E:\C++ Libaries\freetype-2.5.3\include;E:\C++ Headers\GLM\include;E:\C++ Lib Folder\glew2015\include;E:\C++ Lib Folder\boost2015;E:\C++ Libaries\SDL2-2.0.3\include;E:\Data\Timothy\Documents\Visual Studio 2015\Projects\IsostratGame\IsostratGame\include;$(IncludePath)</IncludePath>
-    <LibraryPath>E:\C++ Libaries\freetype-2.5.3\objs\win32\vc2010;E:\C++ Lib Folder\glew2015\lib\Debug\Win32;E:\C++ Lib Folder\boost2015\stage\lib;E:\C++ Libaries\SDL2-2.0.3_Runtime;$(LibraryPath)</LibraryPath>
+    <IncludePath>E:\C++ Lib Folder\lua-5.3.2\include;E:\C++ Libaries\freetype-2.5.3\include;E:\C++ Headers\GLM\include;E:\C++ Lib Folder\glew2015\include;E:\C++ Lib Folder\boost2015;E:\C++ Libaries\SDL2-2.0.3\include;E:\Data\Timothy\Documents\Visual Studio 2015\Projects\IsostratGame\IsostratGame\include;$(IncludePath)</IncludePath>
+    <LibraryPath>E:\C++ Lib Folder\lua-5.3.2\;E:\C++ Libaries\freetype-2.5.3\objs\win32\vc2010;E:\C++ Lib Folder\glew2015\lib\Debug\Win32;E:\C++ Lib Folder\boost2015\stage\lib;E:\C++ Libaries\SDL2-2.0.3_Runtime;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <IncludePath>E:\C++ Libaries\freetype-2.5.3\include;E:\C++ Headers\GLM\include;E:\C++ Lib Folder\glew2015\include;E:\C++ Lib Folder\boost2015;E:\C++ Libaries\SDL2-2.0.3\include;E:\Data\Timothy\Documents\Visual Studio 2015\Projects\IsostratGame\IsostratGame\include;$(IncludePath)</IncludePath>
+    <IncludePath>E:\C++ Lib Folder\lua-5.3.2\include;E:\C++ Libaries\freetype-2.5.3\include;E:\C++ Headers\GLM\include;E:\C++ Lib Folder\glew2015\include;E:\C++ Lib Folder\boost2015;E:\C++ Libaries\SDL2-2.0.3\include;E:\Data\Timothy\Documents\Visual Studio 2015\Projects\IsostratGame\IsostratGame\include;$(IncludePath)</IncludePath>
     <OutDir>..\build\</OutDir>
-    <LibraryPath>E:\C++ Libaries\freetype-2.5.3\objs\win32\vc2010;E:\C++ Lib Folder\glew2015\lib\Release\Win32;E:\C++ Lib Folder\boost2015\stage\lib;E:\C++ Libaries\SDL2-2.0.3_Runtime;$(LibraryPath)</LibraryPath>
+    <LibraryPath>E:\C++ Lib Folder\lua-5.3.2\;E:\C++ Libaries\freetype-2.5.3\objs\win32\vc2010;E:\C++ Lib Folder\glew2015\lib\Release\Win32;E:\C++ Lib Folder\boost2015\stage\lib;E:\C++ Libaries\SDL2-2.0.3_Runtime;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
@@ -167,10 +167,14 @@
     <ClCompile Include="source\camera.cpp" />
     <ClCompile Include="source\config.cpp" />
     <ClCompile Include="source\console.cpp" />
+    <ClCompile Include="source\debugrender.cpp" />
     <ClCompile Include="source\game.cpp" />
     <ClCompile Include="source\graphics.cpp" />
     <ClCompile Include="source\input.cpp" />
     <ClCompile Include="source\main.cpp" />
+    <ClCompile Include="source\script\luagame.cpp" />
+    <ClCompile Include="source\script\luascript.cpp" />
+    <ClCompile Include="source\script\luautil.cpp" />
     <ClCompile Include="source\shader\shaderbase.cpp" />
     <ClCompile Include="source\ui\font.cpp" />
     <ClCompile Include="source\ui\interface.cpp" />
@@ -186,11 +190,15 @@
     <ClInclude Include="include\camera.h" />
     <ClInclude Include="include\config.h" />
     <ClInclude Include="include\console.h" />
+    <ClInclude Include="include\debugrender.h" />
     <ClInclude Include="include\def.h" />
     <ClInclude Include="include\game.h" />
     <ClInclude Include="include\graphics.h" />
     <ClInclude Include="include\input.h" />
     <ClInclude Include="include\platform.h" />
+    <ClInclude Include="include\script\luagame.h" />
+    <ClInclude Include="include\script\luascript.h" />
+    <ClInclude Include="include\script\luautil.h" />
     <ClInclude Include="include\shader\shaderbase.h" />
     <ClInclude Include="include\ui\font.h" />
     <ClInclude Include="include\ui\interface.h" />

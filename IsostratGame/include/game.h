@@ -10,6 +10,7 @@ class CGraphics;
 class CConfigLoader;
 class CInput;
 class CInterfaceManager;
+class CLuaManager;
 
 class CGame
 {
@@ -20,6 +21,8 @@ private:
 	CInput *m_pInput;
 
 	CInterfaceManager *m_pInterfaceManager;
+
+	CLuaManager *m_pLuaManager;
 
 	bool m_bRunning;
 	bool m_bMouseLocked;
@@ -51,6 +54,7 @@ public:
 	CConfigLoader* getConfigLoader();
 	CInput* getInput();
 	CInterfaceManager* getInterfaceManager();
+	CLuaManager *getLuaManager();
 
 	double getFrameTime();
 };

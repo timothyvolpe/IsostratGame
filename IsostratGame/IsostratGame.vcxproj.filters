@@ -43,6 +43,12 @@
     <Filter Include="Source Files\world\blocks">
       <UniqueIdentifier>{fec8d2d5-17a1-478d-80ae-2d38c5474b14}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\script">
+      <UniqueIdentifier>{c9cf6f58-f096-4c75-9399-d62ec09bdb85}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\script">
+      <UniqueIdentifier>{6aea37e4-fcab-4497-86d3-26b8c1346ece}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\main.cpp">
@@ -92,6 +98,18 @@
     </ClCompile>
     <ClCompile Include="source\world\block.cpp">
       <Filter>Source Files\world\blocks</Filter>
+    </ClCompile>
+    <ClCompile Include="source\debugrender.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="source\script\luascript.cpp">
+      <Filter>Source Files\script</Filter>
+    </ClCompile>
+    <ClCompile Include="source\script\luautil.cpp">
+      <Filter>Source Files\script</Filter>
+    </ClCompile>
+    <ClCompile Include="source\script\luagame.cpp">
+      <Filter>Source Files\script</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -148,6 +166,18 @@
     </ClInclude>
     <ClInclude Include="include\world\block.h">
       <Filter>Header Files\world\blocks</Filter>
+    </ClInclude>
+    <ClInclude Include="include\debugrender.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\script\luascript.h">
+      <Filter>Header Files\script</Filter>
+    </ClInclude>
+    <ClInclude Include="include\script\luautil.h">
+      <Filter>Header Files\script</Filter>
+    </ClInclude>
+    <ClInclude Include="include\script\luagame.h">
+      <Filter>Header Files\script</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

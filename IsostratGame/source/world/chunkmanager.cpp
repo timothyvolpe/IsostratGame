@@ -199,7 +199,7 @@ void CChunkManager::draw( glm::mat4 projection, glm::mat4 view )
 		if( tempRenderPos.x == m_renderPos.x && tempRenderPos.y > m_renderPos.y )
 			movementDirection = CHUNK_DIRECTION_FRONT;
 		m_renderPos = tempRenderPos;
-		this->activateChunks( movementDirection );
+	//	this->activateChunks( movementDirection );
 	}
 
 	// Render each chunk

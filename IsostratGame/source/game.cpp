@@ -6,6 +6,7 @@
 #include "config.h"
 #include "input.h"
 #include "ui\interface.h"
+#include "script\luascript.h"
 
 #include <iostream>
 #include <sstream>
@@ -18,6 +19,7 @@ CGame::CGame()
 	m_pConfigLoader = NULL;
 	m_pInput = NULL;
 	m_pInterfaceManager = NULL;
+	m_pLuaManager = NULL;
 	m_bRunning = false;
 	m_bMouseLocked = false;
 	m_frameTime = 0.0;
@@ -79,6 +81,11 @@ bool CGame::start()
 		return false;
 	m_pInterfaceManager->setDimensions( m_pConfigLoader->getResolutionX(), m_pConfigLoader->getResolutionY() );
 
+	// Create the lua manager
+	m_pLuaManager = new CLuaManager();
+	if( !m_pLuaManager->initialize() )
+		return false;
+
 	// Enter the game loop
 	if( !this->gameLoop() )
 		return false;
@@ -88,6 +95,8 @@ bool CGame::start()
 
 void CGame::destroy()
 {
+	// Destroy lua manager
+	DESTROY_DELETE( m_pLuaManager );
 	// Destroy interfaces
 	DESTROY_DELETE( m_pInterfaceManager );
 	// Destroy input
@@ -186,6 +195,9 @@ CGraphics* CGame::getGraphics() {
 }
 CInterfaceManager* CGame::getInterfaceManager() {
 	return m_pInterfaceManager;
+}
+CLuaManager* CGame::getLuaManager() {
+	return m_pLuaManager;
 }
 
 double CGame::getFrameTime() {

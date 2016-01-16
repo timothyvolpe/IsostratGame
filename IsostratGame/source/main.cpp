@@ -26,6 +26,9 @@
 #pragma comment( lib, "freetype253MT.lib" )
 #endif
 
+// Lua
+#pragma comment( lib, "lua53.lib" )
+
 int CALLBACK WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow )
 {
 	// Start the game
