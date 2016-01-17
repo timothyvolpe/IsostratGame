@@ -8,9 +8,11 @@ extern "C" {
 
 int luaf_print( lua_State *pState );
 int luaf_error( lua_State *pState );
+int luaf_include( lua_State *pState );
 
 static const struct luaL_Reg luaf_overridelibs[] ={
 	{ "print", luaf_print },
 	{ "error", luaf_error },
+	{ "include", luaf_include },
 	{ NULL, NULL }
 };

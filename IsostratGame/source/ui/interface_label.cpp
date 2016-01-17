@@ -8,6 +8,7 @@ CInterfaceLabel::CInterfaceLabel() {
 	m_pQuadPosition = new GLuint;
 	m_pQuadOffset = new GLuint;
 	m_vertexCount = 0;
+	m_type = INTERFACE_TYPE_LABEL;
 }
 CInterfaceLabel::~CInterfaceLabel() {
 	SAFE_DELETE( m_pQuadPosition );
@@ -17,8 +18,7 @@ CInterfaceLabel::~CInterfaceLabel() {
 bool CInterfaceLabel::onCreate() {
 	return true;
 }
-void CInterfaceLabel::onDestroy()
-{
+void CInterfaceLabel::onDestroy() {
 	this->destroyTextQuads();
 }
 
@@ -71,12 +71,14 @@ void CInterfaceLabel::rebuildTextQuads()
 		offsetx += (float)glyph.advance / (float)pManager->getWidth();
 		//offsetx += scaledSize.x;
 	}
-	if( !pManager->addQuads( vertices, pFont->getTextureId(), m_pQuadPosition, m_pQuadOffset ) ) {
-		PrintWarn( L"Failed to update label text\n" );
-		this->destroyTextQuads();
-		return;
+	if( vertices.size() > 0 ) {
+		if( !pManager->addQuads( vertices, pFont->getTextureId(), m_pQuadPosition, m_pQuadOffset ) ) {
+			PrintWarn( L"Failed to update label text\n" );
+			this->destroyTextQuads();
+			return;
+		}
+		m_vertexCount = vertices.size();
 	}
-	m_vertexCount = vertices.size();
 }
 void CInterfaceLabel::destroyTextQuads()
 {
@@ -92,6 +94,8 @@ void CInterfaceLabel::destroyTextQuads()
 
 void CInterfaceLabel::onUpdate()
 {
+	CInterfaceBase::onUpdate();
+
 	if( m_bUpdateText ) {
 		this->rebuildTextQuads();
 		m_bUpdateText = false;
@@ -101,8 +105,6 @@ void CInterfaceLabel::onUpdate()
 bool CInterfaceLabel::onActivate()
 {
 	CInterfaceManager *pManager = CGame::instance().getInterfaceManager();
-	std::vector<InterfaceVertex> vertices;
-	glm::vec2 pos, size;
 
 	if( !CInterfaceBase::onActivate() )
 		return false;
@@ -124,12 +126,6 @@ void CInterfaceLabel::onDraw()
 	}
 }
 
-void CInterfaceLabel::setText( std::wstring text )
-{
-	// Localize the text
-	m_text = CGame::instance().getInterfaceManager()->getLocalization()->localizeString( text );
+void CInterfaceLabel::onTextChange() {
 	m_bUpdateText = true;
-}
-std::wstring CInterfaceLabel::getText() {
-	return m_text;
 }

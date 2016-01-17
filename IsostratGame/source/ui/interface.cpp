@@ -5,6 +5,8 @@
 #include "ui\interface_screen.h"
 #include "ui\interface_label.h"
 
+#include "script\luascript.h"
+
 #include "graphics.h"
 #include "shader\shaderbase.h"
 
@@ -96,34 +98,13 @@ void CInterfaceManager::destroy()
 
 bool CInterfaceManager::loadScreens()
 {
-	CInterfaceScreen *pHud;
-	CInterfaceLabel *pLabel0, *pLabel1;
+	boost::filesystem::path scriptPath;
 
-	// Create a test HUD
-	pHud = this->createInterfaceObject<CInterfaceScreen>();
-	if( pHud ) {
-		if( !pHud->onActivate() )
-			return false;
-	}
-	m_pLabel0 = this->createInterfaceObjectRenderable<CInterfaceLabel>();
-	if( m_pLabel0 ) {
-		m_pLabel0->setRelativePosition( glm::vec2( 0.0f, 0.0f ) );
-		m_pLabel0->setRelativeSize( glm::vec2( 0.4f, 0.4f ) );
-		m_pLabel0->setText( L"#DEBUG_FRAMECOUNTER# 0" );
-		pHud->addToContainer( m_pLabel0 );
-		if( !m_pLabel0->onActivate() )
-			return false;
-	}
-	// 2
-	/*pLabel1 = this->createInterfaceObjectRenderable<CInterfaceLabel>();
-	if( pLabel1 ) {
-		pLabel1->setRelativePosition( glm::vec2( 0.5f, 0.5f ) );
-		pLabel1->setRelativeSize( glm::vec2( 0.2f, 0.2f ) );
-		pHud->addToContainer( pLabel1 );
-		if( !pLabel1->onActivate() )
-			return false;
-	}*/
-	m_uiScreens.push_back( pHud );
+	// Load the scripts
+	scriptPath = boost::filesystem::current_path();
+	scriptPath /= FILESYSTEM_LUADIR;
+	if( !CGame::instance().getLuaManager()->loadScript( scriptPath / L"interface\\main.lua", false ) )
+		return false;
 
 	return true;
 }
@@ -147,8 +128,8 @@ void CInterfaceManager::draw( glm::mat4 projection, glm::mat4 view )
 	std::wstringstream fpsStream;
 
 	// Update FPS
-	fpsStream << L"#DEBUG_FRAMECOUNTER#" << (int)(1 / CGame::instance().getFrameTime());
-	m_pLabel0->setText( fpsStream.str() );
+	//fpsStream << L"#DEBUG_FRAMECOUNTER#" << (int)(1 / CGame::instance().getFrameTime());
+	//m_pLabel0->setText( fpsStream.str() );
 
 	// Update all the interface controls
 	for( auto it = m_interfaceList.begin(); it != m_interfaceList.end(); it++ ) {
@@ -275,6 +256,10 @@ bool CInterfaceManager::removeQuads( GLuint quadIndex, GLuint count )
 	return true;
 }
 
+void CInterfaceManager::addScreen( CInterfaceScreen *pScreen ) {
+	m_uiScreens.push_back( pScreen );
+}
+
 ////////////////////
 // CInterfaceBase //
 ////////////////////
@@ -284,6 +269,8 @@ CInterfaceBase::CInterfaceBase() {
 	m_sizeRel = glm::vec2( 0.0f, 0.0f );
 	m_pParent = NULL;
 	m_bVisible = true;
+	m_type = INTERFACE_TYPE_UNKNOWN;
+	m_text = L"";
 }
 CInterfaceBase::~CInterfaceBase() {
 }
@@ -294,6 +281,11 @@ bool CInterfaceBase::initialize()
 }
 void CInterfaceBase::destroy()
 {
+}
+
+void CInterfaceBase::onUpdate()
+{
+	CGame::instance().getLuaManager()->callInterfaceEvent( this, "Update" );
 }
 
 void CInterfaceBase::setRelativePosition( glm::vec2 posRel ) {
@@ -317,13 +309,24 @@ void CInterfaceBase::setVisible( bool visible ) {
 	m_bVisible = visible;
 	this->onVisibilityChange();
 }
+void CInterfaceBase::setText( std::wstring text ) {
+	// Localize the text
+	m_text = CGame::instance().getInterfaceManager()->getLocalization()->localizeString( text );
+	this->onTextChange();
+}
+std::wstring CInterfaceBase::getText() {
+	return m_text;
+}
+
+int CInterfaceBase::getType() {
+	return m_type;
+}
 
 /////////////////////////
 // CInterfaceContainer //
 /////////////////////////
 
 CInterfaceContainer::CInterfaceContainer() {
-
 }
 CInterfaceContainer::~CInterfaceContainer() {
 }

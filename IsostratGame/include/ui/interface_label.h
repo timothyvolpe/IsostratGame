@@ -8,7 +8,6 @@ private:
 	GLuint m_vertexCount;
 	GLuint *m_pQuadPosition, *m_pQuadOffset;
 
-	std::wstring m_text;
 	bool m_bUpdateText;
 
 	void rebuildTextQuads();
@@ -26,6 +25,5 @@ public:
 
 	void onDraw();
 
-	void setText( std::wstring text );
-	std::wstring getText();
+	void onTextChange();
 };

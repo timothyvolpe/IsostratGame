@@ -75,15 +75,19 @@ bool CGame::start()
 	// Create the input handler
 	m_pInput = new CInput();
 
+	// Create the lua manager
+	m_pLuaManager = new CLuaManager();
+	if( !m_pLuaManager->initialize() )
+		return false;
+
 	// Load the interface manager
 	m_pInterfaceManager = new CInterfaceManager();
 	if( !m_pInterfaceManager->initialize() )
 		return false;
 	m_pInterfaceManager->setDimensions( m_pConfigLoader->getResolutionX(), m_pConfigLoader->getResolutionY() );
 
-	// Create the lua manager
-	m_pLuaManager = new CLuaManager();
-	if( !m_pLuaManager->initialize() )
+	// Execute the client scripts
+	if( !m_pLuaManager->executeScripts( false ) )
 		return false;
 
 	// Enter the game loop
@@ -95,10 +99,10 @@ bool CGame::start()
 
 void CGame::destroy()
 {
-	// Destroy lua manager
-	DESTROY_DELETE( m_pLuaManager );
 	// Destroy interfaces
 	DESTROY_DELETE( m_pInterfaceManager );
+	// Destroy lua manager
+	DESTROY_DELETE( m_pLuaManager );
 	// Destroy input
 	SAFE_DELETE( m_pInput );
 	// Destroy graphics

@@ -173,6 +173,7 @@
     <ClCompile Include="source\input.cpp" />
     <ClCompile Include="source\main.cpp" />
     <ClCompile Include="source\script\luagame.cpp" />
+    <ClCompile Include="source\script\luainterface.cpp" />
     <ClCompile Include="source\script\luascript.cpp" />
     <ClCompile Include="source\script\luautil.cpp" />
     <ClCompile Include="source\shader\shaderbase.cpp" />
@@ -197,6 +198,7 @@
     <ClInclude Include="include\input.h" />
     <ClInclude Include="include\platform.h" />
     <ClInclude Include="include\script\luagame.h" />
+    <ClInclude Include="include\script\luainterface.h" />
     <ClInclude Include="include\script\luascript.h" />
     <ClInclude Include="include\script\luautil.h" />
     <ClInclude Include="include\shader\shaderbase.h" />

@@ -7,10 +7,11 @@ extern "C" {
 }
 
 #include <boost\filesystem.hpp>
-#include <vector>
+#include <map>
+
+class CInterfaceBase;
 
 class CLuaScript;
-
 /////////////////
 // CLuaManager //
 /////////////////
@@ -18,11 +19,11 @@ class CLuaScript;
 class CLuaManager
 {
 private:
-	typedef std::vector<CLuaScript*> ScriptList;
+	typedef std::map<std::string, CLuaScript*> ScriptMap;
 
 	lua_State *m_pLuaClientState;
 	lua_State *m_pLuaServerState;
-	ScriptList m_scriptList;
+	ScriptMap m_scriptMap;
 
 	bool createLuaMethods( lua_State *pState, bool isServer );
 public:
@@ -32,9 +33,13 @@ public:
 	bool initialize();
 	void destroy();
 
-	CLuaScript* loadScript( boost::filesystem::path file, bool isServer );
+	bool executeScripts( bool isServer );
 
-	lua_State* getLuaState();
+	CLuaScript* loadScript( boost::filesystem::path file, bool isServer, bool execute = false );
+
+	bool callInterfaceEvent( CInterfaceBase *pInterface, std::string eventName );
+
+	bool isScriptLoaded( boost::filesystem::path file );
 };
 
 ///////////////
@@ -47,7 +52,7 @@ public:
 	CLuaScript();
 	~CLuaScript();
 
-	bool initialize( boost::filesystem::path file, lua_State *pLuaState );
+	bool initialize( boost::filesystem::path file, lua_State *pLuaState, bool execute );
 	void destroy();
 };
 

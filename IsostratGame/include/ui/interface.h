@@ -25,6 +25,13 @@ typedef struct
 } InterfaceVertex;
 #pragma pack(pop, 1)
 
+enum : unsigned short
+{
+	INTERFACE_TYPE_UNKNOWN = 0,
+	INTERFACE_TYPE_SCREEN = 1,
+	INTERFACE_TYPE_LABEL
+};
+
 ///////////////////////
 // CInterfaceManager //
 ///////////////////////
@@ -64,8 +71,6 @@ private:
 
 	ScreenList m_uiScreens;
 	bool loadScreens();
-
-	CInterfaceLabel *m_pLabel0;
 public:
 	CInterfaceManager();
 	~CInterfaceManager();
@@ -86,6 +91,8 @@ public:
 	bool addQuads( std::vector<InterfaceVertex> vertices, GLuint textureId, GLuint *pQuadIndex, GLuint *pQuadOffset );
 	bool updateQuads( std::vector<InterfaceVertex> vertices, GLuint quadIndex );
 	bool removeQuads( GLuint quadIndex, GLuint count );
+
+	void addScreen( CInterfaceScreen *pScreen );
 
 	// Creates an interface object
 	template<class T>
@@ -125,6 +132,9 @@ private:
 	CInterfaceContainer *m_pParent;
 
 	bool m_bVisible;
+protected:
+	int m_type;
+	std::wstring m_text;
 public:
 	CInterfaceBase();
 	virtual ~CInterfaceBase();
@@ -135,13 +145,14 @@ public:
 	virtual bool onCreate() = 0;
 	virtual void onDestroy() = 0;
 
-	virtual void onUpdate() {}
+	virtual void onUpdate();
 
 	virtual bool onActivate() { return true; };
 
 	virtual void onPositionChange() {}
 	virtual void onResize() {}
 	virtual void onVisibilityChange() {}
+	virtual void onTextChange() {}
 
 	virtual void onParentChange() {}
 
@@ -151,6 +162,13 @@ public:
 	glm::vec2 getRelativeSize();
 	bool isVisible();
 	void setVisible( bool visible );
+	void setText( std::wstring text );
+	std::wstring getText();
+	
+	int getType();
+
+	virtual bool isContainer() { return false; }
+	virtual bool isRenderable() { return false; }
 
 	friend class CInterfaceContainer;
 };
@@ -175,6 +193,8 @@ public:
 	bool addToContainer( CInterfaceBase *pControl );
 	bool removeFromContainer( CInterfaceBase *pControl );
 	void clearContainer();
+
+	bool isContainer() { return true; }
 };
 
 //////////////////////////
@@ -195,4 +215,6 @@ public:
 
 	void setLayer( unsigned char layer );
 	unsigned char getLayer();
+
+	bool isRenderable() { return true; }
 };
