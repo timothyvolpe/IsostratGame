@@ -7,6 +7,9 @@
 .vcxproj.filters
 .vcxproj.user
 
+# Game Specific Files
+build/log
+
 # User-specific files
 *.suo
 *.user
