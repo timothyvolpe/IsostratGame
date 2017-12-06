@@ -30,7 +30,7 @@ CCamera::CCamera()
 	m_cameraPitch = 0.0f;
 	m_cameraYaw = 0.0f;
 
-	m_cameraSensitivity = 0.5f;
+	m_cameraSensitivity = 5.0f;
 	m_cameraSpeedWalk = 1.0f;
 	m_cameraSpeed = 3.0f;
 	m_cameraSpeedRun = 7.0f;
@@ -64,8 +64,10 @@ glm::mat4 CCamera::update()
 	mouseY = CGame::instance().getInput()->getMouseDeltaY();
 
 	// Update rotation
-	m_cameraYaw += m_cameraSensitivity * mouseX;
-	m_cameraPitch += m_cameraSensitivity * mouseY;
+	// Crashes when these are too small........?
+
+	m_cameraYaw += m_cameraSensitivity * mouseX * (float)frameTime;
+	m_cameraPitch += m_cameraSensitivity * mouseY * (float)frameTime;
 
 	// Clamp rotation
 	if( m_cameraPitch > 90.0f )

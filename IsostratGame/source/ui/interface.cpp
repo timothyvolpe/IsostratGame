@@ -206,7 +206,6 @@ void CInterfaceManager::reconstructQuadData()
 }
 bool CInterfaceManager::addQuads( std::vector<InterfaceVertex> vertices, GLuint textureId, GLuint *pQuadIndex, GLuint *pQuadOffset )
 {
-	std::vector<int>::iterator emptySpot;
 	QuadData quadData;
 
 	if( vertices.size() == 0 || !pQuadIndex )

@@ -7,6 +7,8 @@
 CInterfaceLabel::CInterfaceLabel() {
 	m_pQuadPosition = new GLuint;
 	m_pQuadOffset = new GLuint;
+	*m_pQuadPosition = INVALID_QUAD_POS;
+	*m_pQuadOffset = INVALID_QUAD_POS;
 	m_vertexCount = 0;
 	m_type = INTERFACE_TYPE_LABEL;
 }

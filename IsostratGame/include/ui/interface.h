@@ -111,9 +111,11 @@ public:
 	T* createInterfaceObjectRenderable()
 	{
 		T* pObject = this->createInterfaceObject<T>();
-		if( pObject )
+		if( pObject ) {
 			m_interfaceRenderableList.push_back( pObject );
-		return pObject;
+			return pObject;
+		}
+		return 0;
 	}
 };
 
