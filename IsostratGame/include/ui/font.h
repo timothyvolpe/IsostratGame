@@ -2,7 +2,7 @@
 
 #include <map>
 #include <ft2build.h>
-#include <freetype.h>
+#include <freetype\freetype.h>
 #include <boost\filesystem.hpp>
 #include <unordered_set>
 #include <GL\glew.h>

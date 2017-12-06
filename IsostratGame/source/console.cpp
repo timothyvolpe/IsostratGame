@@ -64,7 +64,7 @@ void CConsole::destroy()
 		m_hCerr = NULL;
 	}
 
-	FreeConsole();
+	//FreeConsole();
 #endif
 }
 

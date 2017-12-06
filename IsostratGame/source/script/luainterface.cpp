@@ -210,4 +210,8 @@ int luaf_interface_settext( lua_State *pState )
 
 	return 0;
 }
-
+int luaf_interface_settextsize( lua_State *pState )
+{
+	// FIX THIS!
+	return 0;
+}

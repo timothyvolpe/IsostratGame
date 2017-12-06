@@ -1,7 +1,7 @@
 #include "base.h"
 #include "ui\font.h"
 
-#include <ftglyph.h>
+#include <freetype\ftglyph.h>
 
 //////////////////
 // CFontManager //

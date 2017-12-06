@@ -1,5 +1,6 @@
 #pragma once
 
+// DEPRECATED
 #define GAME_VERSION 17
 
 #define EXTERNAL_DEBUG_CONSOLE

@@ -288,6 +288,7 @@ bool CChunkManager::openTerrainFile( std::string path )
 	// Open the chunk stream
 	try
 	{
+		m_chunkStream.exceptions( std::ios::failbit | std::ios::badbit );
 		// Open the file
 		m_chunkStream.open( path.c_str(), std::ios::in | std::ios::out | std::ios::binary );
 		// Get the file size
@@ -333,7 +334,8 @@ void CChunkManager::closeTerrainFile()
 {
 	// Close the stream
 	m_chunkDataSize = 0;
-	m_chunkStream.close();
+	if( m_chunkStream.is_open() )
+		m_chunkStream.close();
 	// Delete the chunks
 	this->destroyChunks();
 }

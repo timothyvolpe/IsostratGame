@@ -5,31 +5,8 @@
 
 #include <GL\glew.h>
 
-// SDL 2.0.3 libraries
-#pragma comment( lib, "SDL2.lib" )
-#pragma comment( lib, "SDL2main.lib" )
-
-// Glew
-#ifdef _DEBUG
-#pragma comment( lib, "glew32sd.lib" )
-#else
-#pragma comment( lib, "glew32s.lib" )
-#endif
-
-// OpenGL
-#pragma comment( lib, "opengl32.lib" )
-
-// FreeType
-#ifdef _DEBUG
-#pragma comment( lib, "freetype253MT_D.lib" )
-#else
-#pragma comment( lib, "freetype253MT.lib" )
-#endif
-
-// Lua
-#pragma comment( lib, "lua53.lib" )
-
-int CALLBACK WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow )
+//int CALLBACK WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow )
+int main( int argc, char *argv[] )
 {
 	// Start the game
 	if( !CGame::instance().start() ) {

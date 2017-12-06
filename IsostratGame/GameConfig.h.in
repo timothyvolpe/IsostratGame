@@ -1,0 +1,2 @@
+#define GameConfig_VERSION_MAJOR @GameConfig_VERSION_MAJOR@
+#define GameConfig_VERSION_MINOR @GameConfig_VERSION_MINOR@

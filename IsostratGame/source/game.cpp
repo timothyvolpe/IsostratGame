@@ -11,6 +11,7 @@
 #include <iostream>
 #include <sstream>
 #include <boost\timer\timer.hpp>
+#include <boost\chrono.hpp>
 
 CGame::CGame()
 {
