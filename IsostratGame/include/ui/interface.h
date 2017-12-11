@@ -80,6 +80,7 @@ public:
 
 	bool setLanguage( unsigned char language );
 
+	void update();
 	void draw( glm::mat4 projection, glm::mat4 view );
 
 	void setDimensions( int width, int height );

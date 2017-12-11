@@ -28,8 +28,12 @@ CGraphics::CGraphics() {
 
 	m_projectionMatrix = glm::mat4( 1.0f );
 	m_orthoMatrix = glm::mat4( 1.0f );
+	m_currentViewMat = glm::mat4( 1.0f );
+	m_currentOrthoViewMat = glm::mat4( 1.0f );
 
 	m_farZ = 0.0f;
+
+	m_wireframeMode = WIREFRAME_MODE_UNSET;
 }
 CGraphics::~CGraphics() {
 }
@@ -85,7 +89,7 @@ bool CGraphics::initialize()
 
 	// OpenGL attributes
 	glClearColor( 0.0f, 0.0f, 0.0f, 1.0f );
-	glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+	this->setWireframeMode( WIREFRAME_MODE_SOLID );
 
 	glEnable( GL_CULL_FACE );
 	glEnable( GL_DEPTH_TEST );
@@ -141,32 +145,45 @@ void CGraphics::destroy()
 	}
 }
 
-void CGraphics::draw()
+void CGraphics::update()
 {
-	glm::mat4 viewMatrix, ortherViewMatrix, modelMatrix;
+	if( CGame::instance().getInput()->isKeyPress( SDL_SCANCODE_F11 ) )
+	{
+		int newMode;
+		newMode = m_wireframeMode + 1;
+		if( newMode >= WIREFRAME_MODE_COUNT )
+			newMode = 0;
+		this->setWireframeMode( newMode );
+	}
 
-	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-
-	// Update the camera
-	viewMatrix = m_pCamera->update();
-	ortherViewMatrix = glm::lookAt( glm::vec3( 0.0f, 0.0f, 1.0f ), glm::vec3( 0.0f, 0.0f, 0.0f ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
+	// Move the camera
+	m_currentViewMat = m_pCamera->update();
+	m_currentOrthoViewMat = glm::lookAt( glm::vec3( 0.0f, 0.0f, 1.0f ), glm::vec3( 0.0f, 0.0f, 0.0f ), glm::vec3( 0.0f, 1.0f, 0.0f ) );
 	// Update frustrum test
 	if( CGame::instance().getInput()->isKeyPress( CGame::instance().getConfigLoader()->getKeybind( KEYBIND_SET_FRUSTRUM ) ) )
-		m_pCamera->getFrustum()->setFrustum( m_pCamera->getEyePosition(), m_projectionMatrix*viewMatrix, m_nearZ, m_farZ, m_fov, m_ratio );
+		m_pCamera->getFrustum()->setFrustum( m_pCamera->getEyePosition(), m_projectionMatrix*m_currentViewMat, m_nearZ, m_farZ, m_fov, m_ratio );
+	// Update debug renderer
+	m_pDebugRender->update();
 
+	// Update the interface
+	CGame::instance().getInterfaceManager()->update();
+}
+void CGraphics::draw()
+{
+	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+
+	if( m_wireframeMode == WIREFRAME_MODE_WIREUI )
+		glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
 	// Draw the world
-	m_pWorld->draw( m_projectionMatrix, viewMatrix );
+	m_pWorld->draw( m_projectionMatrix, m_currentViewMat );
 	// Draw the debug data
-	m_pDebugRender->draw( m_projectionMatrix, viewMatrix );
+	m_pDebugRender->draw( m_projectionMatrix, m_currentViewMat );
+	if( m_wireframeMode == WIREFRAME_MODE_WIREUI )
+		glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
 	// Draw the interface
-	CGame::instance().getInterfaceManager()->draw( m_orthoMatrix, ortherViewMatrix );
+	CGame::instance().getInterfaceManager()->draw( m_orthoMatrix, m_currentOrthoViewMat );
 
 	SDL_GL_SwapWindow( m_pSDLWindow );
-
-	// TEST: add FPS to window title
-	std::stringstream titleStream;
-	titleStream << WINDOW_TITLE_SHORT << " Frametime: " << CGame::instance().getFrameTime();
-	SDL_SetWindowTitle( m_pSDLWindow, titleStream.str().c_str() );
 }
 
 void CGraphics::calculateProjection( int width, int height, float fov, float zFar ) {
@@ -193,4 +210,23 @@ CDebugRender* CGraphics::getDebugRender() {
 }
 CCamera* CGraphics::getCamera() {
 	return m_pCamera;
+}
+void CGraphics::setWireframeMode( int mode )
+{
+	if( mode != m_wireframeMode ) {
+		m_wireframeMode = mode;
+		switch( mode )
+		{
+		case WIREFRAME_MODE_SOLID:
+			glPolygonMode( GL_FRONT_AND_BACK, GL_FILL );
+			break;
+		case WIREFRAME_MODE_WIREUI:
+		case WIREFRAME_MODE_WIRE:
+			glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
+			break;
+		default:
+			PrintWarn( L"Invalid wireframe mode\n" );
+			setWireframeMode( WIREFRAME_MODE_SOLID );
+		}
+	}
 }

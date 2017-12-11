@@ -46,14 +46,16 @@ void CDebugRender::destroy()
 	m_vertices.clear();
 }
 
+void CDebugRender::update()
+{
+	// Make sure it isnt toggled
+	if( CGame::instance().getInput()->isKeyPress( CGame::instance().getConfigLoader()->getKeybind( KEYBIND_TOGGLE_DEBUGDRAW ) ) )
+		m_bEnabled = !m_bEnabled;
+}
 void CDebugRender::draw( glm::mat4 projection, glm::mat4 view )
 {
 	CShaderManager *pShaderManager = CGame::instance().getGraphics()->getShaderManager();
 	glm::mat4 modelMatrix;
-
-	// Make sure it isnt toggled
-	if( CGame::instance().getInput()->isKeyPress( CGame::instance().getConfigLoader()->getKeybind( KEYBIND_TOGGLE_DEBUGDRAW ) ) )
-		m_bEnabled = !m_bEnabled;
 
 	if( !m_bEnabled )
 		return;

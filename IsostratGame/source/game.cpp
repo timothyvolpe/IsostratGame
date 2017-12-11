@@ -142,9 +142,11 @@ bool CGame::gameLoop()
 		}
 #endif
 
+		// Update everything
+		m_pGraphics->update();
 		// Draw the scene
 		m_pGraphics->draw();
-		// Update input
+		// Update input (must be after drawing)
 		m_pInput->update();
 
 		// Get the frame time

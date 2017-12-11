@@ -32,6 +32,7 @@ public:
 	bool initialize();
 	void destroy();
 
+	void update();
 	void draw( glm::mat4 projection, glm::mat4 view );
 
 	void drawLine( glm::vec3 p1, glm::vec3 p2, glm::vec3 color );

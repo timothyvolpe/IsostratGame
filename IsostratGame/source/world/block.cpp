@@ -4,6 +4,7 @@
 CBlock::CBlock( unsigned short id ) {
 	m_blockId = id;
 	m_blockColor = glm::ivec3( 120, 120, 120 );
+	m_opaque = true;
 }
 CBlock::~CBlock() {
 }

@@ -182,7 +182,7 @@ void CChunkManager::draw( glm::mat4 projection, glm::mat4 view )
 	glm::vec3 chunkOffset, chunkPos;
 	glm::ivec2 chunkVectorPos;
 	size_t currentBufferIndex;
-	char movementDirection;
+	//char movementDirection;
 
 	// use the chunk shader program
 	pShaderManager->getProgram( SHADERPROGRAM_CHUNK )->bind();
@@ -196,10 +196,14 @@ void CChunkManager::draw( glm::mat4 projection, glm::mat4 view )
 	tempRenderPos = glm::ivec2( (int)floor( eyePos.x/(float)(CHUNK_GRID_SIZE*CHUNK_SIDE_LENGTH) ), (int)floor( eyePos.z/(float)(CHUNK_GRID_SIZE*CHUNK_SIDE_LENGTH) ) );
 	// Check if its different
 	if( tempRenderPos != m_renderPos ) {
-		if( tempRenderPos.x == m_renderPos.x && tempRenderPos.y > m_renderPos.y )
-			movementDirection = CHUNK_DIRECTION_FRONT;
-		m_renderPos = tempRenderPos;
-	//	this->activateChunks( movementDirection );
+
+		//if( tempRenderPos.x == m_renderPos.x && tempRenderPos.y > m_renderPos.y )
+			//movementDirection = CHUNK_DIRECTION_FRONT;
+		//m_renderPos = tempRenderPos;
+
+		// Load new data
+
+		//	this->activateChunks( movementDirection );
 	}
 
 	// Render each chunk
@@ -321,7 +325,7 @@ bool CChunkManager::openTerrainFile( std::string path )
 		m_chunkOffsets[positionTable.x[i]][positionTable.y[i]] = i;
 	}
 	// Create the chunks
-	if( !this->allocateChunks( 2 ) )
+	if( !this->allocateChunks( 8 ) )
 		return false;
 
 	return true;
@@ -426,6 +430,15 @@ CChunk* CChunkManager::getChunkNeighbor( glm::ivec2 vectorPos, char direction )
 
 #pragma region CChunk
 
+bool CChunk::isOccludingBlock( CBlock* pBlock )
+{
+	if( !pBlock )
+		return false;
+	else if( !pBlock->isOpaque() )
+		return false;
+	return true;
+}
+
 CChunk::CChunk() {
 	m_bufferIndex = 0;
 	m_vertexOffset = 0;
@@ -493,50 +506,67 @@ bool CChunk::populateVertices()
 				shadowColor = glm::ivec3( currentColor.r / 2, currentColor.g / 2, currentColor.b / 2 );
 
 				// TOP
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y+1, z+1 ), currentColor );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y+1, z ), currentColor );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y+1, z ), currentColor );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y+1, z+1 ), currentColor );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y+1, z+1 ), currentColor );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y+1, z ), currentColor );
+				if( !CChunk::isOccludingBlock( this->getBlockNeighbor( currentBlock, CHUNK_DIRECTION_UP ) ) ) {
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z + 1 ), currentColor );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z ), currentColor );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z ), currentColor );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z + 1 ), currentColor );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z + 1 ), currentColor );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z ), currentColor );
+					m_vertexCount += 6;
+				}
 				// BOTTOM
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y,	 z ), currentColor );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y,	 z ), currentColor );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y,	 z+1 ), currentColor );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y,	 z ), currentColor );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y,	 z+1 ), currentColor );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y,	 z+1 ), currentColor );
+				if( !CChunk::isOccludingBlock( this->getBlockNeighbor( currentBlock, CHUNK_DIRECTION_DOWN ) ) ) {
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z ), currentColor );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z ), currentColor );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z + 1 ), currentColor );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z ), currentColor );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z + 1 ), currentColor );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z + 1 ), currentColor );
+					m_vertexCount += 6;
+				}
 				// FRONT
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y,	 z+1 ), shadowColor );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y+1,z+1 ), shadowColor );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y+1,z+1 ), shadowColor );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y,	 z+1 ), shadowColor );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y+1,z+1 ), shadowColor );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y,	 z+1 ), shadowColor );
+				if( !CChunk::isOccludingBlock( this->getBlockNeighbor( currentBlock, CHUNK_DIRECTION_BACK ) ) ) {
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z + 1 ), shadowColor );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z + 1 ), shadowColor );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z + 1 ), shadowColor );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z + 1 ), shadowColor );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z + 1 ), shadowColor );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z + 1 ), shadowColor );
+					m_vertexCount += 6;
+				}
 				// BACK
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y+1,z ), shadowColor/2 );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y+1,z ), shadowColor/2 );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y,	 z ), shadowColor/2 );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y,	 z ), shadowColor/2 );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y+1,z ), shadowColor/2 );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y,	 z ), shadowColor/2 );
+				if( !CChunk::isOccludingBlock( this->getBlockNeighbor( currentBlock, CHUNK_DIRECTION_FRONT ) ) ) {
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z ), shadowColor / 2 );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z ), shadowColor / 2 );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z ), shadowColor / 2 );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z ), shadowColor / 2 );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z ), shadowColor / 2 );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z ), shadowColor / 2 );
+					m_vertexCount += 6;
+				}
 				// RIGHT
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y,	 z ), shadowColor/2 );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y+1,z ), shadowColor/2 );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y+1,z+1 ), shadowColor/2 );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y,	 z ), shadowColor/2 );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y+1,z+1 ), shadowColor/2 );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x+1, y,	 z+1 ), shadowColor/2 );
+				if( !CChunk::isOccludingBlock( this->getBlockNeighbor( currentBlock, CHUNK_DIRECTION_RIGHT ) ) ) {
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z ), shadowColor / 2 );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z ), shadowColor / 2 );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z + 1 ), shadowColor / 2 );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z ), shadowColor / 2 );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z + 1 ), shadowColor / 2 );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z + 1 ), shadowColor / 2 );
+					m_vertexCount += 6;
+				}
 				// LEFT
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y+1,z+1 ), shadowColor );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y+1,z ), shadowColor );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y,	 z ), shadowColor );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y,	 z+1 ), shadowColor );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y+1,z+1 ), shadowColor );
-				pVertices[currentVertex++] = GenVertex( glm::ivec3( x,	 y,	 z ), shadowColor );
+				if( !CChunk::isOccludingBlock( this->getBlockNeighbor( currentBlock, CHUNK_DIRECTION_LEFT ) ) ) {
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z + 1 ), shadowColor );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z ), shadowColor );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z ), shadowColor );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z + 1 ), shadowColor );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z + 1 ), shadowColor );
+					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z ), shadowColor );
+					m_vertexCount += 6;
+				}
 
 				currentBlock++;
-				m_vertexCount+=36;
 			}
 		}
 	}
@@ -580,19 +610,25 @@ bool CChunk::populateIndices()
 					continue;
 				}
 				// BOTTOM
-				pIndices[currentIndex++] = firstIndex;
-				pIndices[currentIndex++] = firstIndex + rowSize + 1;
-				pIndices[currentIndex++] = firstIndex + 1;
-				pIndices[currentIndex++] = firstIndex;
-				pIndices[currentIndex++] = firstIndex + rowSize;
-				pIndices[currentIndex++] = firstIndex + rowSize + 1;
+				//if( !CChunk::isOccludingBlock( this->getBlockNeighbor( currentBlock, CHUNK_DIRECTION_DOWN ) ) ) {
+					pIndices[currentIndex++] = firstIndex;
+					pIndices[currentIndex++] = firstIndex + rowSize + 1;
+					pIndices[currentIndex++] = firstIndex + 1;
+					pIndices[currentIndex++] = firstIndex;
+					pIndices[currentIndex++] = firstIndex + rowSize;
+					pIndices[currentIndex++] = firstIndex + rowSize + 1;
+					m_indexCount += 6;
+				//}
 				// TOP
-				pIndices[currentIndex++] = firstIndex + layerSize;
-				pIndices[currentIndex++] = firstIndex + layerSize + 1;
-				pIndices[currentIndex++] = firstIndex + layerSize + rowSize + 1;
-				pIndices[currentIndex++] = firstIndex + layerSize;
-				pIndices[currentIndex++] = firstIndex + layerSize + rowSize + 1;
-				pIndices[currentIndex++] = firstIndex + layerSize + rowSize;
+				//if( CChunk::isOccludingBlock( this->getBlockNeighbor( currentBlock, CHUNK_DIRECTION_UP ) ) ) {
+					pIndices[currentIndex++] = firstIndex + layerSize;
+					pIndices[currentIndex++] = firstIndex + layerSize + 1;
+					pIndices[currentIndex++] = firstIndex + layerSize + rowSize + 1;
+					pIndices[currentIndex++] = firstIndex + layerSize;
+					pIndices[currentIndex++] = firstIndex + layerSize + rowSize + 1;
+					pIndices[currentIndex++] = firstIndex + layerSize + rowSize;
+					m_indexCount += 6;
+				//}
 				// FRONT
 				pIndices[currentIndex++] = firstIndex + 1;
 				pIndices[currentIndex++] = firstIndex + 1 + layerSize + rowSize;
@@ -622,7 +658,7 @@ bool CChunk::populateIndices()
 				pIndices[currentIndex++] = firstIndex + rowSize + layerSize + 1;
 				pIndices[currentIndex++] = firstIndex + rowSize + 1;
 
-				m_indexCount += 36;
+				m_indexCount += 24;
 				currentBlock++;
 
 				firstIndex++;
@@ -647,7 +683,10 @@ void CChunk::setRawData( unsigned short *pData )
 }
 
 bool CChunk::isBlockVisible( glm::vec3 pos ) {
-	return this->isBlockVisible( this->getBlockIndex( pos ) );
+	size_t index = this->getBlockIndex( pos );
+	if( index >= CHUNK_BLOCK_COUNT )
+		return false;
+	return this->isBlockVisible( index );
 }
 bool CChunk::isBlockVisible( size_t index )
 {
@@ -655,9 +694,9 @@ bool CChunk::isBlockVisible( size_t index )
 	if( !m_blocks[index] )
 		return false;
 	// If the its neighbors occlude it, it isn't visible
-	if( this->getBlockNeighbor( index, CHUNK_DIRECTION_UP ) && this->getBlockNeighbor( index, CHUNK_DIRECTION_DOWN ) &&
-		this->getBlockNeighbor( index, CHUNK_DIRECTION_FRONT ) && this->getBlockNeighbor( index, CHUNK_DIRECTION_BACK ) &&
-		this->getBlockNeighbor( index, CHUNK_DIRECTION_RIGHT ) && this->getBlockNeighbor( index, CHUNK_DIRECTION_LEFT ) )
+	if( CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_UP ) ) && CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_DOWN ) ) &&
+		CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_FRONT ) ) && CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_BACK ) ) &&
+		CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_RIGHT ) ) && CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_LEFT ) ) )
 		return false;
 
 	return true;
@@ -687,7 +726,7 @@ CBlock* CChunk::getBlockNeighbor( size_t index, char direction )
 		if( index % CHUNK_SIDE_LENGTH == (CHUNK_SIDE_LENGTH-1) ) {
 			pNeighbor = pManager->getChunkNeighbor( m_vectorPos, CHUNK_DIRECTION_RIGHT );
 			if( pNeighbor )
-				return pNeighbor->getBlockAt( index - (CHUNK_SIDE_LENGTH-1) );
+				return pNeighbor->getBlockAt( index - (CHUNK_SIDE_LENGTH - 1) );
 			return NULL; 
 		}
 		neighborIndex = index+1;

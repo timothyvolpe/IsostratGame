@@ -2,6 +2,7 @@
 #include "script\luagame.h"
 #include "game.h"
 #include "config.h"
+#include "graphics.h"
 
 int luaf_game_getresolution( lua_State *pLuaState )
 {
@@ -65,5 +66,12 @@ int luaf_game_frametime( lua_State *pLuaState )
 	double frametime;
 	frametime = CGame::instance().getFrameTime();
 	lua_pushnumber( pLuaState, frametime );
+	return 1;
+}
+int luaf_game_getwireframemode( lua_State *pLuaState )
+{
+	int wireframeMode;
+	wireframeMode = CGame::instance().getGraphics()->getWireframeMode();
+	lua_pushinteger( pLuaState, wireframeMode );
 	return 1;
 }

@@ -35,6 +35,12 @@ CCamera::CCamera()
 	m_cameraSpeed = 3.0f;
 	m_cameraSpeedRun = 7.0f;
 
+	m_cameraAccelRate = 24.5f; // 24.5 m/s/s
+	m_cameraAccelRateRun = 34.5f;
+	m_cameraAccelRateWalk = 14.5f;
+	m_cameraDeccelRate = 3.0f; // must be lower than accel
+	m_cameraMoveSpeed = 0.0f;
+
 	m_pFrustum = NULL;
 }
 CCamera::~CCamera() {
@@ -53,9 +59,17 @@ glm::mat4 CCamera::update()
 	CInput *pInput = CGame::instance().getInput();
 	CConfigLoader *pConfig = CGame::instance().getConfigLoader();
 	double frameTime;
-	float moveSpeed;
 	int mouseX;
 	int mouseY;
+
+	bool movingForward = pInput->isKeyHeld( pConfig->getKeybind( KEYBIND_WALK_FORWARD ) );
+	bool movingBackward = pInput->isKeyHeld( pConfig->getKeybind( KEYBIND_WALK_BACKWARD ) );
+	bool movingLeft = pInput->isKeyHeld( pConfig->getKeybind( KEYBIND_STRAFE_RIGHT ) );
+	bool movingRight = pInput->isKeyHeld( pConfig->getKeybind( KEYBIND_STRAFE_LEFT ) );
+
+	bool moving;
+	bool walking = pInput->isKeyHeld( pConfig->getKeybind( KEYBIND_WALK ) );
+	bool running = pInput->isKeyHeld( pConfig->getKeybind( KEYBIND_RUN ) );
 
 	m_viewMatrix = glm::mat4( 1.0f );
 
@@ -70,14 +84,11 @@ glm::mat4 CCamera::update()
 	m_cameraPitch += m_cameraSensitivity * mouseY * (float)frameTime;
 
 	// Clamp rotation
-	if( m_cameraPitch > 90.0f )
-		m_cameraPitch = 90.0f;
-	if( m_cameraPitch < -90.0f )
-		m_cameraPitch = -90.0f;
-	if( m_cameraYaw > 360.0f )
-		m_cameraYaw -= 360.0f;
-	if( m_cameraPitch < -360.0f )
-		m_cameraPitch += 360.0f;
+	if( m_cameraYaw > (2.0f*glm::pi<float>()) )
+		m_cameraYaw -= (2.0f*glm::pi<float>());
+	if( m_cameraYaw < 0.0f )
+		m_cameraYaw += (2.0f*glm::pi<float>());
+	m_cameraPitch = glm::clamp( m_cameraPitch, -(0.5f*glm::pi<float>()), (0.5f*glm::pi<float>()) );
 
 	// Update matrices and vectors
 	m_viewMatrix = glm::rotate( m_viewMatrix, m_cameraPitch, CCamera::CameraRight );
@@ -87,22 +98,43 @@ glm::mat4 CCamera::update()
 	m_cameraUp = glm::vec3( glm::inverse( m_viewMatrix ) * glm::vec4( CCamera::CameraUp, 1.0f ) );
 
 	// Calculate the move speed
-	if( pInput->isKeyHeld( pConfig->getKeybind( KEYBIND_WALK ) ) )
-		moveSpeed = (float)frameTime*m_cameraSpeedWalk;
-	else if( pInput->isKeyHeld( pConfig->getKeybind( KEYBIND_RUN ) ) )
-		moveSpeed = (float)frameTime*m_cameraSpeedRun;
+	if( m_cameraMoveSpeed > 0.0f )
+		m_cameraMoveSpeed -= m_cameraDeccelRate *(float)frameTime;
+	if( m_cameraMoveSpeed < 0.0f )
+		m_cameraMoveSpeed = 0.0f;
+
+	// Determine if we're moving
+	if( movingForward || movingBackward || movingLeft || movingRight )
+		moving = true;
 	else
-		moveSpeed = (float)frameTime*m_cameraSpeed;
+		moving = false;
+
+	if( moving )
+	{
+		if( walking )
+			m_cameraMoveSpeed += m_cameraAccelRateWalk * (float)frameTime;
+		else if( running )
+			m_cameraMoveSpeed += m_cameraAccelRateRun * (float)frameTime;
+		else
+			m_cameraMoveSpeed += m_cameraAccelRate * (float)frameTime;
+
+		if( walking )
+			m_cameraMoveSpeed = glm::clamp( m_cameraMoveSpeed, 0.0f, m_cameraSpeedWalk );
+		else if( running )
+			m_cameraMoveSpeed = glm::clamp( m_cameraMoveSpeed, 0.0f, m_cameraSpeedRun );
+		else
+			m_cameraMoveSpeed = glm::clamp( m_cameraMoveSpeed, 0.0f, m_cameraSpeed );
+	}
 
 	// Move the camera
-	if( pInput->isKeyHeld( pConfig->getKeybind( KEYBIND_WALK_FORWARD ) ) )
-		m_eyePosition += m_cameraForward * moveSpeed;
-	if( pInput->isKeyHeld( pConfig->getKeybind( KEYBIND_WALK_BACKWARD ) ) )
-		m_eyePosition += -m_cameraForward * moveSpeed;
-	if( pInput->isKeyHeld( pConfig->getKeybind( KEYBIND_STRAFE_RIGHT ) ) )
-		m_eyePosition += m_cameraRight * moveSpeed;
-	if( pInput->isKeyHeld( pConfig->getKeybind( KEYBIND_STRAFE_LEFT ) ) )
-		m_eyePosition += -m_cameraRight * moveSpeed;
+	if( movingForward )
+		m_eyePosition += m_cameraForward * (m_cameraMoveSpeed * (float)frameTime);
+	if( movingBackward )
+		m_eyePosition += -m_cameraForward * (m_cameraMoveSpeed * (float)frameTime);
+	if( movingLeft )
+		m_eyePosition += m_cameraRight * (m_cameraMoveSpeed * (float)frameTime);
+	if( movingRight )
+		m_eyePosition += -m_cameraRight * (m_cameraMoveSpeed * (float)frameTime);
 	
 	m_viewMatrix = glm::translate( m_viewMatrix, -m_eyePosition );
 

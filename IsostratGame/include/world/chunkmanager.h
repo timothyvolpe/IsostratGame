@@ -142,6 +142,8 @@ private:
 	GLuint m_vertexOffset, m_indexOffset;
 	GLuint m_vertexCount, m_indexCount;
 public:
+	static bool isOccludingBlock( CBlock* pBlock );
+
 	CChunk();
 	~CChunk();
 

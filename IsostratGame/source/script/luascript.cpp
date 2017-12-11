@@ -163,7 +163,7 @@ bool CLuaManager::callInterfaceEvent( CInterfaceBase *pInterface, std::string ev
 		lua_pop( m_pLuaClientState, 3 );
 		return false;
 	}
-	eventFuncRef = lua_tointeger( m_pLuaClientState, -1 );
+	eventFuncRef = (int)lua_tointeger( m_pLuaClientState, -1 );
 	lua_pop( m_pLuaClientState, 3 );
 	// Call the callback
 	lua_rawgeti( m_pLuaClientState, LUA_REGISTRYINDEX, eventFuncRef );

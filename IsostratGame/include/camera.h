@@ -23,6 +23,10 @@ private:
 	float m_cameraSensitivity;
 	float m_cameraSpeed, m_cameraSpeedRun, m_cameraSpeedWalk; // units per second
 
+	float m_cameraAccelRate, m_cameraAccelRateRun, m_cameraAccelRateWalk;
+	float m_cameraDeccelRate;
+	float m_cameraMoveSpeed;
+
 	glm::vec3 m_eyeVector;
 
 	CCameraFrustum *m_pFrustum;

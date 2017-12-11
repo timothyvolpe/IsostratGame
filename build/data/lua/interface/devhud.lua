@@ -20,6 +20,16 @@ if CLIENT then
 	devhud_wireframe:SetPosition( 0, 0.03 )
 	devhud_wireframe:SetSize( 0.4, 0.4 )
 	devhud_wireframe:SetVisible( true )
-	devhud_wireframe:SetText( "#DEBUG_WIREFRAME# #DEBUG_WIREFRAME_MODE0#" ); --\n#DEBUG_TRIANGLECOUNT# 0\n#DEBUG_WIREFRAME# #DEBUG_WIREFRAME_MODE0#
+	devhud_wireframe:RegisterEvent( "Update", function( self )
+		if( Game:GetWireframeMode() == 0 ) then
+			devhud_wireframe:SetText( "#DEBUG_WIREFRAME# #DEBUG_WIREFRAME_MODE0#" ) --\n#DEBUG_TRIANGLECOUNT# 0\n#DEBUG_WIREFRAME# #DEBUG_WIREFRAME_MODE0#
+		elseif( Game:GetWireframeMode() == 1 ) then
+			devhud_wireframe:SetText( "#DEBUG_WIREFRAME# #DEBUG_WIREFRAME_MODE1#" )
+		elseif( Game:GetWireframeMode() == 2 ) then
+			devhud_wireframe:SetText( "#DEBUG_WIREFRAME# #DEBUG_WIREFRAME_MODE2#" )
+		else
+			devhud_wireframe:SetText( "#DEBUG_WIREFRAME#" )
+		end
+	end )
 	devhud_wireframe:Activate()
 end

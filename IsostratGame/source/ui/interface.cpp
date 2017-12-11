@@ -121,16 +121,8 @@ bool CInterfaceManager::setLanguage( unsigned char language )
 	return true;
 }
 
-void CInterfaceManager::draw( glm::mat4 projection, glm::mat4 view )
+void CInterfaceManager::update()
 {
-	CShaderManager *pShaderManager = CGame::instance().getGraphics()->getShaderManager();
-	glm::vec2 windowDimensions;
-	std::wstringstream fpsStream;
-
-	// Update FPS
-	//fpsStream << L"#DEBUG_FRAMECOUNTER#" << (int)(1 / CGame::instance().getFrameTime());
-	//m_pLabel0->setText( fpsStream.str() );
-
 	// Update all the interface controls
 	for( auto it = m_interfaceList.begin(); it != m_interfaceList.end(); it++ ) {
 		(*it)->onUpdate();
@@ -139,6 +131,12 @@ void CInterfaceManager::draw( glm::mat4 projection, glm::mat4 view )
 	// Reconstruct quads if needed
 	if( m_bQuadsInvalid )
 		this->reconstructQuadData();
+}
+void CInterfaceManager::draw( glm::mat4 projection, glm::mat4 view )
+{
+	CShaderManager *pShaderManager = CGame::instance().getGraphics()->getShaderManager();
+	glm::vec2 windowDimensions;
+	std::wstringstream fpsStream;
 
 	// Bind the interface shader
 	pShaderManager->getProgram( SHADERPROGRAM_INTERFACE )->bind();
