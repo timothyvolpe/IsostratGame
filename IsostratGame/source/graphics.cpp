@@ -162,9 +162,11 @@ void CGraphics::update()
 	// Update frustrum test
 	if( CGame::instance().getInput()->isKeyPress( CGame::instance().getConfigLoader()->getKeybind( KEYBIND_SET_FRUSTRUM ) ) )
 		m_pCamera->getFrustum()->setFrustum( m_pCamera->getEyePosition(), m_projectionMatrix*m_currentViewMat, m_nearZ, m_farZ, m_fov, m_ratio );
+
+	// Update world
+	m_pWorld->update();
 	// Update debug renderer
 	m_pDebugRender->update();
-
 	// Update the interface
 	CGame::instance().getInterfaceManager()->update();
 }

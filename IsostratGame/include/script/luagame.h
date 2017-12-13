@@ -13,6 +13,7 @@ int luaf_game_isfullscreen( lua_State *pLuaState );
 int luaf_game_setfullscreen( lua_State *pLuaState );
 int luaf_game_frametime( lua_State *pLuaState );
 int luaf_game_getwireframemode( lua_State *pLuaState );
+int luaf_game_getcameraposition( lua_State *pLuaState );
 
 static const struct luaL_Reg luaf_GameMetatableClient[] = {
 	{ "GetResolution", luaf_game_getresolution }, 
@@ -22,6 +23,7 @@ static const struct luaL_Reg luaf_GameMetatableClient[] = {
 	{ "SetFullscreen", luaf_game_setfullscreen },
 	{ "GetFrameTime", luaf_game_frametime },
 	{ "GetWireframeMode", luaf_game_getwireframemode },
+	{ "GetCameraPosition", luaf_game_getcameraposition },
 	{ NULL, NULL }
 };
 static const struct luaL_Reg luaf_GameMetatableServer[] ={

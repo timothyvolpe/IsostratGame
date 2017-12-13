@@ -20,6 +20,7 @@ public:
 
 	bool loadSave( std::wstring saveName );
 
+	void update();
 	void draw( glm::mat4 projection, glm::mat4 view );
 
 	CChunkManager* getChunkManager();

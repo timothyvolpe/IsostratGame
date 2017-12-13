@@ -1,6 +1,6 @@
 if CLIENT then
 	devhud = Interface.create( "Screen" )
-	devhud:SetPosition( 0, 0 )
+	devhud:SetPosition( 0.5, 0.5 )
 	devhud:SetSize( 1, 1 )
 	devhud:SetBackground( 0, 0, 0, 0 )
 	devhud:SetVisible( true )
@@ -32,4 +32,18 @@ if CLIENT then
 		end
 	end )
 	devhud_wireframe:Activate()
+	
+	devhud_position = Interface.create( "Label", devhud )
+	devhud_position:SetPosition( 0, 0.06 )
+	devhud_position:SetSize( 0.4, 0.4 )
+	devhud_position:SetVisible( true )
+	devhud_position:SetText( "#DEBUG_POSITION# (0.000, 0.000, 0.000)" );
+	devhud_position:RegisterEvent( "Update", function( self )
+		local cameraPos = Game:GetCameraPosition()
+		cameraPos.x = tonumber( string.format( "%.3f", cameraPos.x ) )
+		cameraPos.y = tonumber( string.format( "%.3f", cameraPos.y ) )
+		cameraPos.z = tonumber( string.format( "%.3f", cameraPos.z ) )
+		devhud_position:SetText( "#DEBUG_POSITION#".." ("..cameraPos.x..", "..cameraPos.y..", "..cameraPos.z..")" )
+	end )
+	devhud_position:Activate()
 end

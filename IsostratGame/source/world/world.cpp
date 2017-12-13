@@ -44,10 +44,7 @@ bool CWorld::loadSave( std::wstring saveName )
 
 	PrintInfo( L"Loading save file %s...\n", saveName.c_str() );
 
-	// Load the terrain
-	terrainPath = fullPath / "terrain";
-	terrainPath /= "terrain.sav";
-	if( !m_pChunkManager->openTerrainFile( terrainPath.string() ) ) {
+	if( !m_pChunkManager->setSaveFile( saveName ) ) {
 		PrintError( L"Failed to load save file %s\n", saveName.c_str() );
 		return false;
 	}
@@ -55,6 +52,9 @@ bool CWorld::loadSave( std::wstring saveName )
 	return true;
 }
 
+void CWorld::update() {
+	m_pChunkManager->update();
+}
 void CWorld::draw( glm::mat4 projection, glm::mat4 view ) {
 	m_pChunkManager->draw( projection, view );
 }

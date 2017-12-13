@@ -21,5 +21,8 @@ language "en"
 		DEBUG_WIREFRAME_MODE0 "solid"
 		DEBUG_WIREFRAME_MODE1 "wireframe"
 		DEBUG_WIREFRAME_MODE2 "wireframeui"
+		
+		DEBUG_POSITION "Pos:"
+		DEBUG_ROTATION "Rot:"
 	}
 }

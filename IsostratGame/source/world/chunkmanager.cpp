@@ -38,6 +38,9 @@ CChunkManager::CChunkManager()
 	m_bUpdateScale = true;
 	m_chunkDataSize = 0;
 
+	m_bValidSave = 0;
+	m_savePath = L"";
+
 	m_renderPos = glm::ivec2( 13, 13 );
 }
 CChunkManager::~CChunkManager() {
@@ -49,7 +52,8 @@ bool CChunkManager::generateMeshes()
 	int chunkSize;
 	int bufferCount;
 	unsigned int chunksPerBuffer;
-	size_t currentChunkCol, currentChunkRow;
+
+	m_hasChunkInBuffer.clear();
 
 	// Determine how many buffers we need
 	chunkSize = CHUNK_VERTEX_COUNT*sizeof( ChunkVertex );
@@ -64,15 +68,17 @@ bool CChunkManager::generateMeshes()
 	m_chunkVertexArrays.resize( bufferCount );
 	m_chunkVertexBuffers.resize( bufferCount );
 	m_chunkIndexBuffers.resize( bufferCount );
+	m_hasChunkInBuffer.reserve( bufferCount );
 	glGenVertexArrays( bufferCount, &m_chunkVertexArrays[0] );
 	glGenBuffers( bufferCount, &m_chunkVertexBuffers[0] );
 	glGenBuffers( bufferCount, &m_chunkIndexBuffers[0] );
 
 	// Fill each buffer with blank data to allocate space
-	for( size_t i = 0; i < m_chunkVertexArrays.size(); i++ )
+	for( int i = 0; i < bufferCount; i++ )
 	{
 		// Calculate chunks and indices in the buffer
 		if( i == bufferCount - 1 ) {
+			// The last buffer wont be full size
 			m_bufferChunkCounts.push_back( m_chunkCount - i*chunksPerBuffer );
 			m_bufferIndexCounts.push_back( m_bufferChunkCounts[i] * CHUNK_INDEX_COUNT );
 		}
@@ -80,6 +86,7 @@ bool CChunkManager::generateMeshes()
 			m_bufferChunkCounts.push_back( chunksPerBuffer );
 			m_bufferIndexCounts.push_back( chunksPerBuffer * CHUNK_INDEX_COUNT );
 		}
+		m_hasChunkInBuffer.push_back( std::vector<bool>( m_bufferChunkCounts.back(), false ) );
 
 		glBindVertexArray( m_chunkVertexArrays[i] );
 		// Fill the vertex buffer
@@ -93,33 +100,6 @@ bool CChunkManager::generateMeshes()
 		glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, m_chunkIndexBuffers[i] );
 		glBufferData( GL_ELEMENT_ARRAY_BUFFER, sizeof( unsigned int )*CHUNK_INDEX_COUNT*m_bufferChunkCounts[i], NULL, GL_DYNAMIC_DRAW );
 	}
-
-	// Fill the mesh for each chunk
-	currentChunkCol = 0;
-	currentChunkRow = 0;
-	for( int i = 0; i < bufferCount; i++ )
-	{
-		glBindVertexArray( m_chunkVertexArrays[i] );
-		for( GLuint chunk = 0; chunk < m_bufferChunkCounts[i]; chunk++ ) {
-			// Set the buffer position
-			m_activeChunks[currentChunkCol][currentChunkRow]->setBufferPosition( glm::ivec2( currentChunkCol, currentChunkRow ), i, chunk*CHUNK_VERTEX_COUNT, chunk*CHUNK_INDEX_COUNT );
-			glBindBuffer( GL_ARRAY_BUFFER, m_chunkVertexBuffers[i] );
-			if( !m_activeChunks[currentChunkCol][currentChunkRow]->populateVertices() )
-				return false;
-			glBindBuffer( GL_ELEMENT_ARRAY_BUFFER, m_chunkIndexBuffers[i] );
-			if( !m_activeChunks[currentChunkCol][currentChunkRow]->populateIndices() )
-				return false;
-			currentChunkRow++;
-			if( currentChunkRow >= m_activeChunks[currentChunkCol].size() ) {
-				currentChunkRow = 0;
-				currentChunkCol++;
-			}
-		}
-	}
-
-	// Sort the chunks buffer vertex array object
-	ChunkComparator comparator;
-	std::sort( m_chunks.begin(), m_chunks.end(), comparator );
 
 	return true;
 }
@@ -141,15 +121,6 @@ void CChunkManager::destroyMeshes()
 	m_chunkCount = 0;
 }
 
-void CChunkManager::activateChunks( char direction )
-{
-	switch( direction )
-	{
-	case CHUNK_DIRECTION_FRONT:
-		break;
-	}
-}
-
 bool CChunkManager::initialize()
 {
 	// Initialize all the blocks
@@ -160,50 +131,122 @@ bool CChunkManager::initialize()
 	m_pBlockStone->setBlockColor( glm::ivec3( 150, 150, 150 ) );
 	this->registerBlock( m_pBlockStone );
 
+	m_renderPos = this->getEyeChunk();
+
+	// Start the chunk loader thread
+	m_pChunkLoader = new CChunkLoader();
+	if( !m_pChunkLoader->initialize() )
+		return false;
+
 	return true;
 }
 void CChunkManager::destroy()
 {
-	// Close the terrain file
-	this->closeTerrainFile();
+	// Stop the chunk loader
+	m_pChunkLoader->destroy();
+	SAFE_DELETE( m_pChunkLoader );
 	// Destroy the blocks
 	SAFE_DELETE( m_pBlockGrass );
 	SAFE_DELETE( m_pBlockStone );
 	m_blockClasses.clear();
 }
 
+void CChunkManager::update()
+{
+	int chunksCopied;
+	LoadedChunk chunk;
+	glm::ivec2 gridOrigin, chunkGridPos, eyeChunk;
+	char movementDirection;
+
+	m_pChunkLoader->sendChunkQueue();
+
+	// Copy over all the new chunks (maximum of 5 per frame)
+	chunksCopied = 0;
+	while( chunksCopied < 5 && m_pChunkLoader->getFinishedQueueSize() > 0 )
+	{
+		// Make sure we get a valid chunk (it wasnt cleared)
+		chunk = m_pChunkLoader->popFinishedChunk();
+		if( !chunk.pChunk )
+			continue;
+
+		// Put it in grid position
+		gridOrigin = m_renderPos - (int)m_chunkViewDistance;
+		chunkGridPos = chunk.position - gridOrigin;
+		// Check if its out of bounds
+		if( chunkGridPos.x >= (m_chunkViewDistance * 2 + 1) || chunkGridPos.y >= (m_chunkViewDistance * 2 + 1) ) {
+			chunk.pChunk->destroy();
+			SAFE_DELETE( chunk.pChunk );
+			continue;
+		}
+		else {
+			chunk.pChunk->setChunkGridPos( chunkGridPos );
+			m_chunks.push_back( chunk.pChunk );
+			boost::unique_lock<boost::shared_mutex> lock( m_mutex_ );
+			m_chunkGrid[chunkGridPos.x][chunkGridPos.y] = chunk.pChunk;
+			lock.unlock();
+		}
+
+		// Find a place for it in a buffer
+		unsigned int bufferIndex = 0;
+		for( auto it = m_hasChunkInBuffer.begin(); it != m_hasChunkInBuffer.end(); it++, bufferIndex++ )
+		{
+			unsigned int chunkIndex = 0;
+			for( auto it2 = (*it).begin(); it2 != (*it).end(); it2++, chunkIndex++ )
+			{
+				// If we found a spot
+				if( (*it2) == false )
+				{
+					chunk.pChunk->setBufferPosition( bufferIndex, chunkIndex*CHUNK_VERTEX_COUNT, chunkIndex*CHUNK_INDEX_COUNT );
+					chunk.pChunk->sendDataToBuffers();
+					(*it2) = true;
+					it = m_hasChunkInBuffer.end()-1;
+					break;
+				}
+			}
+		}
+
+		chunksCopied++;
+	}
+
+	// Calculate the chunk that is under the eye
+	eyeChunk = this->getEyeChunk();
+	// Check if its different
+	if( eyeChunk != m_renderPos )
+	{
+		if( eyeChunk.x == m_renderPos.x && eyeChunk.y > m_renderPos.y )
+			movementDirection = CHUNK_DIRECTION_FRONT;
+		else if( eyeChunk.x == m_renderPos.x && eyeChunk.y < m_renderPos.y )
+			movementDirection = CHUNK_DIRECTION_BACK;
+		else if( eyeChunk.x < m_renderPos.x && eyeChunk.y == m_renderPos.y )
+			movementDirection = CHUNK_DIRECTION_LEFT;
+		else if( eyeChunk.x > m_renderPos.x && eyeChunk.y == m_renderPos.y )
+			movementDirection = CHUNK_DIRECTION_RIGHT;
+		else {
+			PrintError( L"Chunks move two directions??\n" );
+			movementDirection = 0;
+		}
+
+		m_renderPos = eyeChunk;
+	}
+
+	// Sort the chunks buffer vertex array object
+	ChunkComparator comparator;
+	std::sort( m_chunks.begin(), m_chunks.end(), comparator );
+}
 void CChunkManager::draw( glm::mat4 projection, glm::mat4 view )
 {
 	CShaderManager *pShaderManager = CGame::instance().getGraphics()->getShaderManager();
 	CDebugRender *pDebugRender  = CGame::instance().getGraphics()->getDebugRender();
 	glm::mat4 modelMatrix;
-	glm::vec3 eyePos;
-	glm::ivec2 tempRenderPos;
 	glm::vec3 chunkOffset, chunkPos;
-	glm::ivec2 chunkVectorPos;
+	glm::ivec2 chunkGridPos;
 	size_t currentBufferIndex;
-	//char movementDirection;
 
 	// use the chunk shader program
 	pShaderManager->getProgram( SHADERPROGRAM_CHUNK )->bind();
 	if( m_bUpdateScale ) {
 		glUniform1f( pShaderManager->getProgram( SHADERPROGRAM_CHUNK )->getUniform( "voxelScale" ), CHUNK_GRID_SIZE );
 		m_bUpdateScale = false;
-	}
-
-	// Calculate the chunk that is under the eye
-	eyePos = CGame::instance().getGraphics()->getCamera()->getEyePosition();
-	tempRenderPos = glm::ivec2( (int)floor( eyePos.x/(float)(CHUNK_GRID_SIZE*CHUNK_SIDE_LENGTH) ), (int)floor( eyePos.z/(float)(CHUNK_GRID_SIZE*CHUNK_SIDE_LENGTH) ) );
-	// Check if its different
-	if( tempRenderPos != m_renderPos ) {
-
-		//if( tempRenderPos.x == m_renderPos.x && tempRenderPos.y > m_renderPos.y )
-			//movementDirection = CHUNK_DIRECTION_FRONT;
-		//m_renderPos = tempRenderPos;
-
-		// Load new data
-
-		//	this->activateChunks( movementDirection );
 	}
 
 	// Render each chunk
@@ -216,11 +259,11 @@ void CChunkManager::draw( glm::mat4 projection, glm::mat4 view )
 			glBindVertexArray( m_chunkVertexArrays[currentBufferIndex] );
 		}
 		// Update matrices
-		chunkVectorPos = (*it)->getChunkVectorPos();
+		chunkGridPos = (*it)->getChunkGridPos();
 		chunkPos = glm::vec3( 
-			(chunkVectorPos.x*CHUNK_SIDE_LENGTH*CHUNK_GRID_SIZE) + (m_renderPos.x * CHUNK_SIDE_LENGTH*CHUNK_GRID_SIZE), 
+			(chunkGridPos.x*CHUNK_SIDE_LENGTH*CHUNK_GRID_SIZE) + (m_renderPos.x * CHUNK_SIDE_LENGTH*CHUNK_GRID_SIZE),
 			0.0f, 
-			(chunkVectorPos.y*CHUNK_SIDE_LENGTH*CHUNK_GRID_SIZE) + (m_renderPos.y * CHUNK_SIDE_LENGTH*CHUNK_GRID_SIZE)  
+			(chunkGridPos.y*CHUNK_SIDE_LENGTH*CHUNK_GRID_SIZE) + (m_renderPos.y * CHUNK_SIDE_LENGTH*CHUNK_GRID_SIZE)
 			)+chunkOffset;
 		modelMatrix = glm::translate( glm::mat4( 1.0f ), chunkPos );
 		pShaderManager->m_ubGlobalMatrices.mvp = projection * view * modelMatrix;
@@ -242,23 +285,13 @@ bool CChunkManager::allocateChunks( unsigned char viewDistance )
 	// Allocate the chunks around render pos
 	renderPosOffset = m_renderPos + glm::ivec2( -m_chunkViewDistance, -m_chunkViewDistance );
 	m_chunks.reserve( m_chunkCount );
-	// Allocate columns
-	m_activeChunks.resize( m_chunkViewDistance*2+1 );
-	for( size_t x = 0; x < m_activeChunks.size(); x++ )
-	{
-		for( int z = 0; z < (m_chunkViewDistance * 2 + 1); z++ )
-		{
-			// Load data from file
-			CChunk *pChunk = new CChunk();
-			unsigned short *pData = this->readRawChunkData( glm::ivec2( renderPosOffset.x+x, renderPosOffset.y+z ) );
-			if( !pData )
-				return false;
-			if( !pChunk->initialize() )
-				return false;
-			pChunk->setRawData( pData );
-			m_chunks.push_back( pChunk );
-			m_activeChunks[x].push_back( pChunk );
-			SAFE_DELETE_A( pData );
+	// Load each chunk
+	boost::unique_lock<boost::shared_mutex> lock( m_mutex_ );
+	m_chunkGrid.resize( (m_chunkViewDistance * 2 + 1) );
+	for( int x = 0; x < (m_chunkViewDistance * 2 + 1); x++ ) {
+		for( int z = 0; z < (m_chunkViewDistance * 2 + 1); z++ ) {
+			m_pChunkLoader->addChunkToQueue( glm::ivec2( renderPosOffset.x + x, renderPosOffset.y + z ) );
+			m_chunkGrid[x].push_back( 0 );
 		}
 	}
 
@@ -277,99 +310,31 @@ void CChunkManager::destroyChunks()
 	// Destroy the meshes
 	this->destroyMeshes();
 	m_chunkCount = 0;
-	for( auto it = m_activeChunks.begin(); it != m_activeChunks.end(); it++ ) {
-		(*it).clear();
-	}
-	m_activeChunks.clear();
 	m_chunks.clear();
+	boost::unique_lock<boost::shared_mutex> lock( m_mutex_ );
+	m_chunkGrid.clear();
 }
 
-bool CChunkManager::openTerrainFile( std::string path )
+bool CChunkManager::setSaveFile( std::wstring saveName )
 {
-	TerrainSaveHeader terrainHeader;
-	TerrainPositionTable positionTable;
+	// We need to verify this is a valid save
 
-	// Open the chunk stream
-	try
-	{
-		m_chunkStream.exceptions( std::ios::failbit | std::ios::badbit );
-		// Open the file
-		m_chunkStream.open( path.c_str(), std::ios::in | std::ios::out | std::ios::binary );
-		// Get the file size
-		m_chunkStream.seekg( 0, std::ios::end );
-		m_chunkDataSize = (size_t)m_chunkStream.tellg();
-		m_chunkStream.seekg( 0, std::ios::beg );
-		// Read the header
-		m_chunkStream.read( reinterpret_cast<char*>( &terrainHeader ), sizeof( TerrainSaveHeader ) );
-		// Read the position table
-		m_chunkStream.read( reinterpret_cast<char*>( &positionTable ), sizeof( TerrainPositionTable ) );
-	}
-	catch( std::ios_base::failure ) {
-		PrintError( L"Failed to open terrain file \"%hs\"\n", path.c_str() );
-		return false;
-	}
-	// Make sure the version and height matches
-	if( terrainHeader.version_a != TERRAIN_VERSION_A || terrainHeader.version_b != TERRAIN_VERSION_B ) {
-		PrintError( L"Terrain file (version %i.%i) is not the correct version (%i.%i)\n", terrainHeader.version_a, terrainHeader.version_b, TERRAIN_VERSION_A, TERRAIN_VERSION_B );
-		return false;
-	}
-	if( terrainHeader.chunkHeight != CHUNK_HEIGHT ) {
-		PrintError( L"Terrain file (height %i) does not match program chunk height (%i)\n", terrainHeader.chunkHeight, CHUNK_HEIGHT );
-		return false;
-	}
-	// Interpret the position table
-	memset( &m_chunkOffsets, -1, sizeof( m_chunkOffsets ) );
-	for( unsigned int i = 0; i < TERRAIN_REGION_SIDE*TERRAIN_REGION_SIDE; i++ ) {
-		if( positionTable.x[i] == -1 || positionTable.y[i] == -1 )
-			continue;
-		m_chunkOffsets[positionTable.x[i]][positionTable.y[i]] = i;
-	}
-	// Create the chunks
-	if( !this->allocateChunks( 8 ) )
+	// later...
+
+	m_bValidSave = true;
+	m_savePath = boost::filesystem::current_path();
+	m_savePath /= FILESYSTEM_SAVEDIR;
+	m_savePath /= saveName;
+	m_savePath /= "terrain";
+
+	m_pChunkLoader->setSavePath( m_savePath );
+
+	// Create the space for the chunks in memory
+	// Begin loading them from file and creating their vertex data
+	if( !this->allocateChunks( 4 ) )
 		return false;
 
 	return true;
-}
-bool CChunkManager::saveTerrainFile( std::string path )
-{
-	return true;
-}
-void CChunkManager::closeTerrainFile()
-{
-	// Close the stream
-	m_chunkDataSize = 0;
-	if( m_chunkStream.is_open() )
-		m_chunkStream.close();
-	// Delete the chunks
-	this->destroyChunks();
-}
-
-unsigned short* CChunkManager::readRawChunkData( glm::ivec2 pos )
-{
-	size_t offset;
-	unsigned short *pData;
-
-	// Read the raw chunk data from the file
-
-	// Make sure its exists
-	if( m_chunkOffsets[pos.x][pos.y] == -1 ) {
-		PrintError( L"Tried to load chunk that does not exist\n" );
-		return NULL;
-	}
-	// Move to the offset
-	offset = sizeof( TerrainSaveHeader ) + sizeof( TerrainPositionTable );
-	offset += m_chunkOffsets[pos.x][pos.y]*CHUNK_BLOCK_COUNT*sizeof( unsigned short );
-	// Make sure its valid
-	if( offset > m_chunkDataSize ) {
-		PrintError( L"Invalid offset in terrain file\n" );
-		return NULL;
-	}
-	m_chunkStream.seekg( offset );
-	// Read the data
-	pData = new unsigned short[CHUNK_BLOCK_COUNT];
-	m_chunkStream.read( reinterpret_cast<char*>(pData), sizeof( unsigned short )*CHUNK_BLOCK_COUNT );
-
-	return pData;
 }
 
 // Returns the index (0 to chunk count)
@@ -416,12 +381,250 @@ CChunk* CChunkManager::getChunkNeighbor( glm::ivec2 vectorPos, char direction )
 		return NULL;
 	}
 
-	if( (size_t)neighborPos.x >= m_activeChunks.size() )
+	boost::shared_lock_guard<boost::shared_mutex> lock( m_mutex_ );
+	if( (size_t)neighborPos.x >= m_chunkGrid.size() )
 		return NULL;
-	else if( (size_t)neighborPos.y >= m_activeChunks[neighborPos.x].size() )
+	else if( (size_t)neighborPos.y >= m_chunkGrid[neighborPos.x].size() )
 		return NULL;
 	else
-		return m_activeChunks[neighborPos.x][neighborPos.y];
+		return m_chunkGrid[neighborPos.x][neighborPos.y];
+}
+glm::ivec2 CChunkManager::getEyeChunk() {
+	glm::vec3 eyePos = CGame::instance().getGraphics()->getCamera()->getEyePosition();
+	return glm::ivec2( (int)floor( eyePos.x / (float)(CHUNK_GRID_SIZE*CHUNK_SIDE_LENGTH) ), (int)floor( eyePos.z / (float)(CHUNK_GRID_SIZE*CHUNK_SIDE_LENGTH) ) );
+}
+void CChunkManager::getBufferIds( int bufferIndex, unsigned int *pVertexArrayId, unsigned int *pVertexBufferId, unsigned int *pIndexBufferId ) {
+	(*pVertexArrayId) = m_chunkVertexArrays[bufferIndex];
+	(*pVertexBufferId) = m_chunkVertexBuffers[bufferIndex];
+	(*pIndexBufferId) = m_chunkIndexBuffers[bufferIndex];
+}
+
+//////////////////
+// CChunkLoader //
+//////////////////
+
+CChunkLoader::CChunkLoader() {
+	m_running_.store( false );
+	m_chunksToLoad_.store( false );
+}
+CChunkLoader::~CChunkLoader() {
+}
+
+void CChunkLoader::threadStart()
+{
+	PrintInfo( L"THREAD: Chunk loader thread started\n" );
+
+	while( m_running_.load() )
+	{
+		this->loadQueue();
+
+		boost::unique_lock<boost::shared_mutex> lock( m_mutex_ );
+		while( !m_chunksToLoad_.load() && m_running_.load() ) {
+			m_loadChunks_.wait( lock );
+		}
+		lock.unlock();
+	}
+
+	PrintInfo( L"THREAD: Chunk loader thread terminated\n" );
+}
+
+bool CChunkLoader::initialize()
+{
+	m_savePath = "";
+
+	m_running_.store( true );
+	m_chunksToLoad_.store( false );
+	m_chunkQueue_.clear();
+
+	m_chunkLoaderThread = boost::thread( &CChunkLoader::threadStart, this );
+
+	return true;
+}
+void CChunkLoader::destroy()
+{
+	// Stop the thread
+	m_running_.store( false );
+	// Force queue to load in case we're waiting
+	this->clearQueue();
+	this->m_loadChunks_.notify_one();
+
+	m_chunkLoaderThread.join();
+}
+
+void CChunkLoader::addChunkToQueue( glm::ivec2 absolutePosition ) {
+	boost::lock_guard<boost::shared_mutex> lock( this->m_mutex_ );
+	m_chunkQueue_.push_back( absolutePosition );
+}
+void CChunkLoader::clearQueue() {
+	boost::lock_guard<boost::shared_mutex> lock( this->m_mutex_ );
+	m_chunkQueue_.clear();
+}
+glm::ivec2 CChunkLoader::popChunkFromQueue( bool *pSuccess )
+{
+	if( this->getQueueSize() == 0 ) {
+		*pSuccess = false;
+		return glm::ivec2();
+	}
+	boost::unique_lock<boost::shared_mutex> lock( this->m_mutex_ );
+	glm::ivec2 front = m_chunkQueue_.front();
+	m_chunkQueue_.pop_front();
+	lock.unlock();
+	*pSuccess = true;
+	return front;
+}
+int CChunkLoader::getQueueSize() {
+	boost::shared_lock<boost::shared_mutex> lock( this->m_mutex_ );
+	int count = m_chunkQueue_.size();
+	lock.unlock();
+	return count;
+}
+void CChunkLoader::sendChunkQueue()
+{
+	if( this->getQueueSize() > 0 ) {
+		m_chunksToLoad_.store( true );
+		this->m_loadChunks_.notify_one();
+	}
+}
+
+void CChunkLoader::addFinishedChunk( glm::ivec2 position, CChunk *pChunk )
+{
+	LoadedChunk chunk;
+	chunk.position = position;
+	chunk.pChunk = pChunk;
+	boost::lock_guard<boost::shared_mutex> lock( this->m_finishedMutex_ );
+	m_finishedChunkQueue_.push_back( chunk );
+}
+LoadedChunk CChunkLoader::popFinishedChunk()
+{
+	LoadedChunk chunk;
+	if( this->getFinishedQueueSize() == 0 ) {
+		chunk.pChunk = 0;
+		return chunk;
+	}
+	boost::unique_lock<boost::shared_mutex> lock( this->m_finishedMutex_ );
+	chunk = m_finishedChunkQueue_.front();
+	m_finishedChunkQueue_.pop_front();
+	lock.unlock();
+	return chunk;
+}
+int CChunkLoader::getFinishedQueueSize()
+{
+	boost::shared_lock<boost::shared_mutex> lock( this->m_finishedMutex_ );
+	int count = m_finishedChunkQueue_.size();
+	lock.unlock();
+	return count;
+}
+
+bool CChunkLoader::populateChunkDataFromFile( glm::ivec2 position, CChunk *pChunk )
+{
+	glm::ivec2 regionFileCoords;
+	glm::ivec2 positionInRegion;
+	boost::filesystem::path regionFilePath;
+	std::stringstream fileName;
+	std::fstream regionStream;
+	int chunkOffset;
+
+	TerrainOffsetTable offsetTable;
+	size_t offset;
+	unsigned short *pData;
+
+	pChunk->setChunkPos( position );
+
+	// Open the required region file
+	regionFileCoords = position / TERRAIN_REGION_SIDE;
+	if( position.x < 0 )
+		regionFileCoords.x--;
+	if( position.y < 0 )
+		regionFileCoords.y--;
+
+	regionFilePath = m_savePath;
+	fileName << regionFileCoords.x << "_" << regionFileCoords.y << ".sav";
+	regionFilePath /= fileName.str();
+
+	// open the file
+	try
+	{
+		regionStream.exceptions( std::ios::failbit | std::ios::badbit );
+		// Open the file
+		regionStream.open( regionFilePath.c_str(), std::ios::in | std::ios::out | std::ios::binary );
+		// Read the header
+		//regionStream.read( 0, sizeof( TerrainSaveHeader ) );
+		// Read the position table
+		regionStream.read( reinterpret_cast<char*>(&offsetTable), sizeof( TerrainOffsetTable ) );
+	}
+	catch( std::ios_base::failure ) {
+		PrintError( L"Failed to open terrain file \"%s\"\n", regionFilePath.c_str() );
+		return false;
+	}
+
+	// Read the raw chunk data from the file
+
+	positionInRegion = position - glm::ivec2( regionFileCoords.x*TERRAIN_REGION_SIDE, regionFileCoords.y*TERRAIN_REGION_SIDE );
+
+	// Make sure its exists
+	chunkOffset = offsetTable.offset[positionInRegion.x][positionInRegion.y];
+	if( chunkOffset == -1 ) {
+		PrintError( L"Tried to load chunk that does not exist\n" );
+		return false;
+	}
+
+	// Move to the offset
+	offset = sizeof( TerrainOffsetTable );
+	offset += chunkOffset;
+	// Make sure its valid
+	regionStream.seekg( offset );
+	// Read the data
+	pData = new unsigned short[CHUNK_BLOCK_COUNT];
+	regionStream.read( reinterpret_cast<char*>(pData), sizeof( unsigned short )*CHUNK_BLOCK_COUNT );
+	if( regionStream.eof() ) {
+		SAFE_DELETE_A( pData );
+		return false;
+	}
+	else
+		pChunk->setRawData( pData );
+
+	SAFE_DELETE_A( pData );
+
+	// Generate geometry
+	if( !pChunk->generateVertices() )
+		return false;
+	if( !pChunk->generateIndices() )
+		return false;
+
+	return true;
+}
+void CChunkLoader::loadQueue()
+{
+	PrintInfo( L"THREAD: Loading new chunks...\n" );
+
+	while( this->getQueueSize() > 0 )
+	{
+		glm::ivec2 pos;
+		bool success;
+		pos = this->popChunkFromQueue( &success );
+		if( !success )
+			continue;
+
+		CChunk *pChunk = new CChunk();
+		if( !pChunk->initialize() ) {
+			SAFE_DELETE( pChunk );
+			continue;
+		}
+		if( !this->populateChunkDataFromFile( pos, pChunk ) ) {
+			pChunk->destroy();
+			SAFE_DELETE( pChunk );
+			continue;
+		}
+		this->addFinishedChunk( pos, pChunk );
+	}
+
+	m_chunksToLoad_.store( false );
+
+	PrintInfo( L"THREAD: Done loading!\n" );
+}
+void CChunkLoader::setSavePath( boost::filesystem::path savePath )
+{
+	m_savePath = savePath;
 }
 
 ////////////
@@ -445,7 +648,10 @@ CChunk::CChunk() {
 	m_indexOffset = 0;
 	m_vertexCount = 0;
 	m_indexCount = 0;
-	m_vectorPos = glm::ivec2( 0, 0 );
+	m_chunkPos = glm::ivec2( 0, 0 );
+	m_chunkGridPos = glm::ivec2( 0, 0 );
+	m_pVertices = 0;
+	m_pIndices = 0;
 }
 CChunk::~CChunk() {
 }
@@ -463,30 +669,31 @@ void CChunk::destroy()
 	m_indexOffset = 0;
 	m_vertexCount = 0;
 	m_indexCount = 0;
-	m_vectorPos = glm::ivec2( 0, 0 );
+	m_chunkPos = glm::ivec2( 0, 0 );
+	m_chunkGridPos = glm::ivec2( 0, 0 );
 	m_blocks.clear();
+	if( m_pVertices )
+		SAFE_DELETE_A( m_pVertices );
+	if( m_pIndices )
+		SAFE_DELETE_A( m_pIndices );
 }
 
-void CChunk::setBufferPosition( glm::ivec2 vectorPos , size_t bufferIndex, GLuint vertexOffset, GLuint indexOffset )
+void CChunk::setBufferPosition( size_t bufferIndex, GLuint vertexOffset, GLuint indexOffset )
 {
-	m_vectorPos = vectorPos;
 	m_bufferIndex = bufferIndex;
 	m_vertexOffset = vertexOffset;
 	m_indexOffset = indexOffset;
 }
-bool CChunk::populateVertices()
+bool CChunk::generateVertices()
 {
 	GLuint currentVertex;
 	size_t currentBlock;
-	ChunkVertex *pVertices;
 	glm::ivec3 currentColor, shadowColor;
 
-	// The vertex buffer should already be bound
-
-	// Get a pointer to the data
-	pVertices = reinterpret_cast<ChunkVertex*>(glMapBufferRange( GL_ARRAY_BUFFER, sizeof( ChunkVertex )*m_vertexOffset, sizeof( ChunkVertex )*CHUNK_VERTEX_COUNT, GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_WRITE_BIT ));
-	if( !pVertices ) {
-		PrintError( L"Failed to update terrain\n" );
+	// Create space for vertex buffer
+	m_pVertices = new ChunkVertex[CHUNK_VERTEX_COUNT];
+	if( !m_pVertices ) {
+		PrintError( L"Memory error while generating chunk vertices.\n " );
 		return false;
 	}
 
@@ -494,8 +701,10 @@ bool CChunk::populateVertices()
 	currentVertex = 0;
 	currentBlock = 0;
 	m_vertexCount = 0;
-	for( unsigned int y = 0; y < CHUNK_HEIGHT; y++ ) {
-		for( unsigned int z = 0; z < CHUNK_SIDE_LENGTH; z++ ) {
+	for( unsigned int y = 0; y < CHUNK_HEIGHT; y++ )
+	{
+		for( unsigned int z = 0; z < CHUNK_SIDE_LENGTH; z++ )
+		{
 			for( unsigned int x = 0; x < CHUNK_SIDE_LENGTH; x++ )
 			{
 				if( !this->isBlockVisible( currentBlock ) ) {
@@ -507,62 +716,62 @@ bool CChunk::populateVertices()
 
 				// TOP
 				if( !CChunk::isOccludingBlock( this->getBlockNeighbor( currentBlock, CHUNK_DIRECTION_UP ) ) ) {
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z + 1 ), currentColor );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z ), currentColor );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z ), currentColor );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z + 1 ), currentColor );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z + 1 ), currentColor );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z ), currentColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z + 1 ), currentColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z ), currentColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z ), currentColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z + 1 ), currentColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z + 1 ), currentColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z ), currentColor );
 					m_vertexCount += 6;
 				}
 				// BOTTOM
 				if( !CChunk::isOccludingBlock( this->getBlockNeighbor( currentBlock, CHUNK_DIRECTION_DOWN ) ) ) {
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z ), currentColor );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z ), currentColor );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z + 1 ), currentColor );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z ), currentColor );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z + 1 ), currentColor );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z + 1 ), currentColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z ), currentColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z ), currentColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z + 1 ), currentColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z ), currentColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z + 1 ), currentColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z + 1 ), currentColor );
 					m_vertexCount += 6;
 				}
 				// FRONT
 				if( !CChunk::isOccludingBlock( this->getBlockNeighbor( currentBlock, CHUNK_DIRECTION_BACK ) ) ) {
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z + 1 ), shadowColor );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z + 1 ), shadowColor );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z + 1 ), shadowColor );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z + 1 ), shadowColor );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z + 1 ), shadowColor );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z + 1 ), shadowColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z + 1 ), shadowColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z + 1 ), shadowColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z + 1 ), shadowColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z + 1 ), shadowColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z + 1 ), shadowColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z + 1 ), shadowColor );
 					m_vertexCount += 6;
 				}
 				// BACK
 				if( !CChunk::isOccludingBlock( this->getBlockNeighbor( currentBlock, CHUNK_DIRECTION_FRONT ) ) ) {
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z ), shadowColor / 2 );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z ), shadowColor / 2 );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z ), shadowColor / 2 );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z ), shadowColor / 2 );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z ), shadowColor / 2 );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z ), shadowColor / 2 );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z ), shadowColor / 2 );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z ), shadowColor / 2 );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z ), shadowColor / 2 );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z ), shadowColor / 2 );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z ), shadowColor / 2 );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z ), shadowColor / 2 );
 					m_vertexCount += 6;
 				}
 				// RIGHT
 				if( !CChunk::isOccludingBlock( this->getBlockNeighbor( currentBlock, CHUNK_DIRECTION_RIGHT ) ) ) {
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z ), shadowColor / 2 );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z ), shadowColor / 2 );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z + 1 ), shadowColor / 2 );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z ), shadowColor / 2 );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z + 1 ), shadowColor / 2 );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z + 1 ), shadowColor / 2 );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z ), shadowColor / 2 );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z ), shadowColor / 2 );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z + 1 ), shadowColor / 2 );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z ), shadowColor / 2 );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z + 1 ), shadowColor / 2 );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z + 1 ), shadowColor / 2 );
 					m_vertexCount += 6;
 				}
 				// LEFT
 				if( !CChunk::isOccludingBlock( this->getBlockNeighbor( currentBlock, CHUNK_DIRECTION_LEFT ) ) ) {
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z + 1 ), shadowColor );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z ), shadowColor );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z ), shadowColor );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z + 1 ), shadowColor );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z + 1 ), shadowColor );
-					pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z ), shadowColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z + 1 ), shadowColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z ), shadowColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z ), shadowColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z + 1 ), shadowColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z + 1 ), shadowColor );
+					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z ), shadowColor );
 					m_vertexCount += 6;
 				}
 
@@ -570,26 +779,21 @@ bool CChunk::populateVertices()
 			}
 		}
 	}
-	// Finish
-	glUnmapBuffer( GL_ARRAY_BUFFER );
 
 	return true;
 }
-bool CChunk::populateIndices()
+bool CChunk::generateIndices()
 {
 	GLuint currentIndex;
 	size_t currentBlock;
-	unsigned int *pIndices;
 	unsigned int firstIndex;
 	unsigned int layerSize = (CHUNK_SIDE_LENGTH + 1)*(CHUNK_SIDE_LENGTH + 1);
 	unsigned int rowSize = (CHUNK_SIDE_LENGTH + 1);
 
-	// The index buffer should already be bound
-
-	// Get a pointer to the data
-	pIndices = reinterpret_cast<unsigned int*>(glMapBufferRange( GL_ELEMENT_ARRAY_BUFFER, sizeof( unsigned int )*m_indexOffset, sizeof( unsigned int )*CHUNK_INDEX_COUNT, GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_WRITE_BIT ));
-	if( !pIndices ) {
-		PrintError( L"Failed to update terrain\n" );
+	// Create index data
+	m_pIndices = new unsigned int[CHUNK_INDEX_COUNT];
+	if( !m_pIndices ) {
+		PrintError( L"Memory error while generating chunk indices.\n " );
 		return false;
 	}
 
@@ -610,53 +814,49 @@ bool CChunk::populateIndices()
 					continue;
 				}
 				// BOTTOM
-				//if( !CChunk::isOccludingBlock( this->getBlockNeighbor( currentBlock, CHUNK_DIRECTION_DOWN ) ) ) {
-					pIndices[currentIndex++] = firstIndex;
-					pIndices[currentIndex++] = firstIndex + rowSize + 1;
-					pIndices[currentIndex++] = firstIndex + 1;
-					pIndices[currentIndex++] = firstIndex;
-					pIndices[currentIndex++] = firstIndex + rowSize;
-					pIndices[currentIndex++] = firstIndex + rowSize + 1;
-					m_indexCount += 6;
-				//}
+				m_pIndices[currentIndex++] = firstIndex;
+				m_pIndices[currentIndex++] = firstIndex + rowSize + 1;
+				m_pIndices[currentIndex++] = firstIndex + 1;
+				m_pIndices[currentIndex++] = firstIndex;
+				m_pIndices[currentIndex++] = firstIndex + rowSize;
+				m_pIndices[currentIndex++] = firstIndex + rowSize + 1;
+				m_indexCount += 6;
 				// TOP
-				//if( CChunk::isOccludingBlock( this->getBlockNeighbor( currentBlock, CHUNK_DIRECTION_UP ) ) ) {
-					pIndices[currentIndex++] = firstIndex + layerSize;
-					pIndices[currentIndex++] = firstIndex + layerSize + 1;
-					pIndices[currentIndex++] = firstIndex + layerSize + rowSize + 1;
-					pIndices[currentIndex++] = firstIndex + layerSize;
-					pIndices[currentIndex++] = firstIndex + layerSize + rowSize + 1;
-					pIndices[currentIndex++] = firstIndex + layerSize + rowSize;
-					m_indexCount += 6;
-				//}
+				m_pIndices[currentIndex++] = firstIndex + layerSize;
+				m_pIndices[currentIndex++] = firstIndex + layerSize + 1;
+				m_pIndices[currentIndex++] = firstIndex + layerSize + rowSize + 1;
+				m_pIndices[currentIndex++] = firstIndex + layerSize;
+				m_pIndices[currentIndex++] = firstIndex + layerSize + rowSize + 1;
+				m_pIndices[currentIndex++] = firstIndex + layerSize + rowSize;
+				m_indexCount += 6;
 				// FRONT
-				pIndices[currentIndex++] = firstIndex + 1;
-				pIndices[currentIndex++] = firstIndex + 1 + layerSize + rowSize;
-				pIndices[currentIndex++] = firstIndex + 1 + layerSize;
-				pIndices[currentIndex++] = firstIndex + 1;
-				pIndices[currentIndex++] = firstIndex + 1 + rowSize;
-				pIndices[currentIndex++] = firstIndex + 1 + layerSize + rowSize;
+				m_pIndices[currentIndex++] = firstIndex + 1;
+				m_pIndices[currentIndex++] = firstIndex + 1 + layerSize + rowSize;
+				m_pIndices[currentIndex++] = firstIndex + 1 + layerSize;
+				m_pIndices[currentIndex++] = firstIndex + 1;
+				m_pIndices[currentIndex++] = firstIndex + 1 + rowSize;
+				m_pIndices[currentIndex++] = firstIndex + 1 + layerSize + rowSize;
 				// BACK
-				pIndices[currentIndex++] = firstIndex;
-				pIndices[currentIndex++] = firstIndex + layerSize;
-				pIndices[currentIndex++] = firstIndex + layerSize + rowSize;
-				pIndices[currentIndex++] = firstIndex;
-				pIndices[currentIndex++] = firstIndex + layerSize + rowSize;
-				pIndices[currentIndex++] = firstIndex + rowSize;
+				m_pIndices[currentIndex++] = firstIndex;
+				m_pIndices[currentIndex++] = firstIndex + layerSize;
+				m_pIndices[currentIndex++] = firstIndex + layerSize + rowSize;
+				m_pIndices[currentIndex++] = firstIndex;
+				m_pIndices[currentIndex++] = firstIndex + layerSize + rowSize;
+				m_pIndices[currentIndex++] = firstIndex + rowSize;
 				// LEFT
-				pIndices[currentIndex++] = firstIndex;
-				pIndices[currentIndex++] = firstIndex + layerSize + 1;
-				pIndices[currentIndex++] = firstIndex + layerSize;
-				pIndices[currentIndex++] = firstIndex;
-				pIndices[currentIndex++] = firstIndex + 1;
-				pIndices[currentIndex++] = firstIndex + layerSize + 1;
+				m_pIndices[currentIndex++] = firstIndex;
+				m_pIndices[currentIndex++] = firstIndex + layerSize + 1;
+				m_pIndices[currentIndex++] = firstIndex + layerSize;
+				m_pIndices[currentIndex++] = firstIndex;
+				m_pIndices[currentIndex++] = firstIndex + 1;
+				m_pIndices[currentIndex++] = firstIndex + layerSize + 1;
 				// RIGHT
-				pIndices[currentIndex++] = firstIndex + rowSize + layerSize;
-				pIndices[currentIndex++] = firstIndex + rowSize + layerSize + 1;
-				pIndices[currentIndex++] = firstIndex + rowSize;
-				pIndices[currentIndex++] = firstIndex + rowSize;
-				pIndices[currentIndex++] = firstIndex + rowSize + layerSize + 1;
-				pIndices[currentIndex++] = firstIndex + rowSize + 1;
+				m_pIndices[currentIndex++] = firstIndex + rowSize + layerSize;
+				m_pIndices[currentIndex++] = firstIndex + rowSize + layerSize + 1;
+				m_pIndices[currentIndex++] = firstIndex + rowSize;
+				m_pIndices[currentIndex++] = firstIndex + rowSize;
+				m_pIndices[currentIndex++] = firstIndex + rowSize + layerSize + 1;
+				m_pIndices[currentIndex++] = firstIndex + rowSize + 1;
 
 				m_indexCount += 24;
 				currentBlock++;
@@ -667,8 +867,45 @@ bool CChunk::populateIndices()
 		}
 	}
 
-	// Finisn
+	return true;
+}
+bool CChunk::sendDataToBuffers()
+{
+	unsigned int vaoId, vboId, iboId;
+	ChunkVertex *pVertices;
+	unsigned int *pIndices;
+
+	CGame::instance().getGraphics()->getWorld()->getChunkManager()->getBufferIds( m_bufferIndex, &vaoId, &vboId, &iboId );
+
+	glBindVertexArray( vaoId );
+	// VERTICES
+	// Get a pointer to the data
+	glBindBuffer( GL_ARRAY_BUFFER, vboId );
+	pVertices = reinterpret_cast<ChunkVertex*>(glMapBufferRange( GL_ARRAY_BUFFER, sizeof( ChunkVertex )*m_vertexOffset, sizeof( ChunkVertex )*CHUNK_VERTEX_COUNT, GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_WRITE_BIT ));
+	if( !pVertices ) {
+		PrintError( L"Failed to update terrain\n" );
+		return false;
+	}
+	memcpy( pVertices, m_pVertices, sizeof( ChunkVertex )*CHUNK_VERTEX_COUNT );
+	// Finish
+	glUnmapBuffer( GL_ARRAY_BUFFER );
+
+	// INDICES
+	// Get a pointer to the data
+	glBindBuffer( GL_ARRAY_BUFFER, iboId );
+	pIndices = reinterpret_cast<unsigned int*>(glMapBufferRange( GL_ELEMENT_ARRAY_BUFFER, sizeof( unsigned int )*m_indexOffset, sizeof( unsigned int )*CHUNK_INDEX_COUNT, GL_MAP_INVALIDATE_RANGE_BIT | GL_MAP_WRITE_BIT ));
+	if( !pIndices ) {
+		PrintError( L"Failed to update terrain\n" );
+		return false;
+	}
+	memcpy( pIndices, pIndices, sizeof( unsigned int )*CHUNK_INDEX_COUNT );
+	// Finish
 	glUnmapBuffer( GL_ELEMENT_ARRAY_BUFFER );
+
+	if( m_pVertices )
+		SAFE_DELETE_A( m_pVertices );
+	if( m_pIndices )
+		SAFE_DELETE_A( m_pIndices );
 
 	return true;
 }
@@ -677,6 +914,7 @@ void CChunk::setRawData( unsigned short *pData )
 {
 	CChunkManager *pChunkManager = CGame::instance().getGraphics()->getWorld()->getChunkManager();
 
+	boost::unique_lock<boost::shared_mutex> lock( m_mutex_ );
 	for( unsigned int i = 0; i < CHUNK_BLOCK_COUNT; i++ ) {
 		m_blocks[i] = pChunkManager->getBlockById( pData[i] );
 	}
@@ -691,7 +929,7 @@ bool CChunk::isBlockVisible( glm::vec3 pos ) {
 bool CChunk::isBlockVisible( size_t index )
 {
 	// Make sure it exists
-	if( !m_blocks[index] )
+	if( !this->getBlockAt( index ) )
 		return false;
 	// If the its neighbors occlude it, it isn't visible
 	if( CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_UP ) ) && CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_DOWN ) ) &&
@@ -714,6 +952,7 @@ CBlock* CChunk::getBlockNeighbor( size_t index, char direction )
 	CChunk *pNeighbor;
 	size_t neighborIndex;
 	int row, layer;
+	glm::ivec2 gridPos = this->getChunkGridPos();
 
 	//row = (int)(index / CHUNK_SIDE_LENGTH);
 	layer = (int)(index / (CHUNK_SIDE_LENGTH*CHUNK_SIDE_LENGTH));
@@ -724,7 +963,7 @@ CBlock* CChunk::getBlockNeighbor( size_t index, char direction )
 	case CHUNK_DIRECTION_RIGHT:
 		// if its at the edge of the chunk
 		if( index % CHUNK_SIDE_LENGTH == (CHUNK_SIDE_LENGTH-1) ) {
-			pNeighbor = pManager->getChunkNeighbor( m_vectorPos, CHUNK_DIRECTION_RIGHT );
+			pNeighbor = pManager->getChunkNeighbor( gridPos, CHUNK_DIRECTION_RIGHT );
 			if( pNeighbor )
 				return pNeighbor->getBlockAt( index - (CHUNK_SIDE_LENGTH - 1) );
 			return NULL; 
@@ -734,7 +973,7 @@ CBlock* CChunk::getBlockNeighbor( size_t index, char direction )
 	case CHUNK_DIRECTION_LEFT:
 		// if its at the edge of the chunk
 		if( index % CHUNK_SIDE_LENGTH == 0 ) {
-			pNeighbor = pManager->getChunkNeighbor( m_vectorPos, CHUNK_DIRECTION_LEFT );
+			pNeighbor = pManager->getChunkNeighbor( gridPos, CHUNK_DIRECTION_LEFT );
 			if( pNeighbor )
 				return pNeighbor->getBlockAt( index + CHUNK_SIDE_LENGTH-1 );
 			return NULL;
@@ -744,7 +983,7 @@ CBlock* CChunk::getBlockNeighbor( size_t index, char direction )
 	case CHUNK_DIRECTION_BACK:
 		// if its at the edge of the chunk
 		if( row == CHUNK_SIDE_LENGTH-1 ) { //  
-			pNeighbor = pManager->getChunkNeighbor( m_vectorPos, CHUNK_DIRECTION_BACK );
+			pNeighbor = pManager->getChunkNeighbor( gridPos, CHUNK_DIRECTION_BACK );
 			if( pNeighbor )
 				return pNeighbor->getBlockAt( index - CHUNK_SIDE_LENGTH*(CHUNK_SIDE_LENGTH-1) );
 			return NULL;
@@ -754,7 +993,7 @@ CBlock* CChunk::getBlockNeighbor( size_t index, char direction )
 	case CHUNK_DIRECTION_FRONT:
 		// if its at the edge of the chunk
 		if( row == 0 ) { //  
-			pNeighbor = pManager->getChunkNeighbor( m_vectorPos, CHUNK_DIRECTION_FRONT );
+			pNeighbor = pManager->getChunkNeighbor( gridPos, CHUNK_DIRECTION_FRONT );
 			if( pNeighbor )
 				return pNeighbor->getBlockAt( index + CHUNK_SIDE_LENGTH*(CHUNK_SIDE_LENGTH-1) );
 			return NULL;
@@ -777,11 +1016,13 @@ CBlock* CChunk::getBlockNeighbor( size_t index, char direction )
 		PrintWarn( L"Unknown block direction to getBlockNeighbor\n" );
 		return NULL;
 	}
+	boost::shared_lock_guard<boost::shared_mutex> lock( m_mutex_ );
 	if( neighborIndex < m_blocks.size() )
 		return m_blocks[neighborIndex];
 	return NULL;
 }
 CBlock* CChunk::getBlockAt( size_t index ) {
+	boost::shared_lock_guard<boost::shared_mutex> lock( m_mutex_ );
 	if( index < m_blocks.size() )
 		return m_blocks[index];
 	return NULL;
@@ -791,10 +1032,6 @@ CBlock* CChunk::getBlockAt( glm::vec3 pos ) {
 }
 GLuint CChunk::getIndexCount() {
 	return m_indexCount;
-}
-
-glm::ivec2 CChunk::getChunkVectorPos() {
-	return m_vectorPos;
 }
 size_t CChunk::getBufferIndex() {
 	return m_bufferIndex;

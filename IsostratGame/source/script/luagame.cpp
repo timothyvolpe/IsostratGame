@@ -3,6 +3,7 @@
 #include "game.h"
 #include "config.h"
 #include "graphics.h"
+#include "camera.h"
 
 int luaf_game_getresolution( lua_State *pLuaState )
 {
@@ -73,5 +74,18 @@ int luaf_game_getwireframemode( lua_State *pLuaState )
 	int wireframeMode;
 	wireframeMode = CGame::instance().getGraphics()->getWireframeMode();
 	lua_pushinteger( pLuaState, wireframeMode );
+	return 1;
+}
+int luaf_game_getcameraposition( lua_State *pLuaState )
+{
+	glm::vec3 cameraPosition;
+	cameraPosition = CGame::instance().getGraphics()->getCamera()->getEyePosition();
+	lua_newtable( pLuaState );
+	lua_pushnumber( pLuaState, cameraPosition.x );
+	lua_setfield( pLuaState, -2, "x" );
+	lua_pushnumber( pLuaState, cameraPosition.y );
+	lua_setfield( pLuaState, -2, "y" );
+	lua_pushnumber( pLuaState, cameraPosition.z );
+	lua_setfield( pLuaState, -2, "z" );
 	return 1;
 }
