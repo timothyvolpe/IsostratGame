@@ -49,6 +49,7 @@ typedef struct
 {
 	int width, height;
 	int advance;
+	int verticalOffset;
 	glm::vec2 uv, uv_end;
 } FontGlyph;
 
@@ -64,6 +65,7 @@ private:
 		int pointSize;
 		int width, height;
 		int advance;
+		int verticalOffset;
 		GLubyte *pBuffer;
 
 		bool operator<( const GlyphBitmap &rhs ) const { return width*height > rhs.width*rhs.height; }
@@ -74,6 +76,7 @@ private:
 		int x, y;
 		int width, height;
 		int advance;
+		int verticalOffset;
 		wchar_t charId;
 		int pointSize;
 		GLubyte *pBuffer;

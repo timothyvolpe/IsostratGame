@@ -146,6 +146,7 @@ void CInterfaceManager::draw( glm::mat4 projection, glm::mat4 view )
 	// Send the matrix info
 	pShaderManager->m_ubGlobalMatrices.mvp_ortho = projection * view;
 	pShaderManager->updateUniformBlock( UNIFORMBLOCK_GLOBALMATRICES );
+
 	// Update the dimensions
 	glUniform2fv( pShaderManager->getProgram( SHADERPROGRAM_INTERFACE )->getUniform( "resolution" ), 1, &windowDimensions[0] );
 
@@ -155,8 +156,9 @@ void CInterfaceManager::draw( glm::mat4 projection, glm::mat4 view )
 	// Draw all the renderable components
 	glBindVertexArray( m_interfaceVAO );
 	for( auto it = m_interfaceRenderableList.begin(); it != m_interfaceRenderableList.end(); it++ ) {
-		if( (*it)->isVisible() )
+		if( (*it)->isVisible() ) {
 			(*it)->onDraw();
+		}
 	}
 }
 
@@ -313,6 +315,14 @@ void CInterfaceBase::setText( std::wstring text ) {
 }
 std::wstring CInterfaceBase::getText() {
 	return m_text;
+}
+
+glm::vec2 CInterfaceBase::getPosRespectiveToParent()
+{
+	if( m_pParent )
+		return m_pParent->getPosRespectiveToParent() + this->getRelativePosition();
+	else
+		return this->getRelativePosition();
 }
 
 int CInterfaceBase::getType() {

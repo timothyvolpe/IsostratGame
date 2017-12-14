@@ -33,11 +33,12 @@ void CInterfaceLabel::rebuildTextQuads()
 	glm::vec2 pos;
 	glm::vec2 scaledSize;
 	float offsetx;
+	float relVericalOffset;
 
 	this->destroyTextQuads();
 
 	pFont = pManager->getFontManager()->getFont( L"DEFAULTFONT" );
-	pos = this->getRelativePosition();
+	pos = this->getPosRespectiveToParent();
 
 	// Create a quad for each character
 	offsetx = 0;
@@ -54,19 +55,23 @@ void CInterfaceLabel::rebuildTextQuads()
 			continue;
 		}
 		FontGlyph glyph = pFont->getGlyph( 20, m_text[i] );
+		relVericalOffset = glyph.verticalOffset / (float)pManager->getHeight();
 
 		scaledSize = glm::vec2( glyph.width, glyph.height ) / glm::vec2( pManager->getWidth(), pManager->getHeight() );
 
-		currentVertex.relpos = glm::vec2( pos.x + offsetx, pos.y + scaledSize.y );
+		currentVertex.relpos = glm::vec2( pos.x + offsetx, pos.y + scaledSize.y + relVericalOffset );
 		currentVertex.tex = glm::vec2( glyph.uv.x, glyph.uv.y );
 		vertices.push_back( currentVertex );
-		currentVertex.relpos = glm::vec2( pos.x + offsetx, pos.y );
+
+		currentVertex.relpos = glm::vec2( pos.x + offsetx, pos.y + relVericalOffset );
 		currentVertex.tex = glm::vec2( glyph.uv.x, glyph.uv_end.y );
 		vertices.push_back( currentVertex );
-		currentVertex.relpos = glm::vec2( pos.x + offsetx + scaledSize.x, pos.y + scaledSize.y );
+
+		currentVertex.relpos = glm::vec2( pos.x + offsetx + scaledSize.x, pos.y + scaledSize.y + relVericalOffset );
 		currentVertex.tex = glm::vec2( glyph.uv_end.x, glyph.uv.y );
 		vertices.push_back( currentVertex );
-		currentVertex.relpos = glm::vec2( pos.x + offsetx + scaledSize.x, pos.y );
+
+		currentVertex.relpos = glm::vec2( pos.x + offsetx + scaledSize.x, pos.y + relVericalOffset );
 		currentVertex.tex = glm::vec2( glyph.uv_end.x, glyph.uv_end.y );
 		vertices.push_back( currentVertex );
 

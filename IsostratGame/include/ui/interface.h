@@ -159,6 +159,7 @@ public:
 
 	virtual void onParentChange() {}
 
+	glm::vec2 getPosRespectiveToParent();
 	void setRelativePosition( glm::vec2 posRel );
 	glm::vec2 getRelativePosition();
 	void setRelativeSize( glm::vec2 sizeRel );

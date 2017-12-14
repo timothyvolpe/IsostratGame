@@ -1,6 +1,6 @@
 if CLIENT then
 	devhud = Interface.create( "Screen" )
-	devhud:SetPosition( 0.5, 0.5 )
+	devhud:SetPosition( 0.01, 0.91 )
 	devhud:SetSize( 1, 1 )
 	devhud:SetBackground( 0, 0, 0, 0 )
 	devhud:SetVisible( true )

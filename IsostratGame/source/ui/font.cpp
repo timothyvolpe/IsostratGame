@@ -172,6 +172,7 @@ bool CFont::initializeFont( FT_Library hFreeType, std::wstring fontName, std::un
 			}
 
 			int advance = m_fontFace->glyph->metrics.horiAdvance / 64;
+			int verticalOffset = -(m_fontFace->glyph->metrics.height - m_fontFace->glyph->metrics.horiBearingY) / 64;
 
 			glyphBitmap = m_fontFace->glyph->bitmap;
 
@@ -193,6 +194,7 @@ bool CFont::initializeFont( FT_Library hFreeType, std::wstring fontName, std::un
 			glyphBuffer.pBuffer = new GLubyte[width*height];
 			glyphBuffer.pointSize = (*it2);
 			glyphBuffer.advance = advance;
+			glyphBuffer.verticalOffset = verticalOffset;
 			memcpy( glyphBuffer.pBuffer, glyphBitmap.buffer, width*height );
 			glyphList.push_back( glyphBuffer );
 			// Increase required area
@@ -286,6 +288,7 @@ bool CFont::startBinPack( std::vector<GlyphBitmap> glyphList, int width, int hei
 					renderedGlyph.uv = glm::vec2( (float)(*it)->x / (float)width, (float)(*it)->y / (float)height );
 					renderedGlyph.uv_end = glm::vec2( (float)(*it)->width / (float)width + renderedGlyph.uv.x, (float)(*it)->height / (float)height + renderedGlyph.uv.y );
 					renderedGlyph.advance = (*it)->advance;
+					renderedGlyph.verticalOffset = (*it)->verticalOffset;
 					m_renderedGlyphs[(*it)->pointSize][(*it)->charId] = renderedGlyph;
 				}
 			}
@@ -371,6 +374,7 @@ CFont::FontMapNode* CFont::insertIntoBin( FontMapNode *pNode, GlyphBitmap glyphB
 	pNode->width = glyphBitmap.width;
 	pNode->height = glyphBitmap.height;
 	pNode->advance = glyphBitmap.advance;
+	pNode->verticalOffset = glyphBitmap.verticalOffset;
 
 	pNode->charId = glyphBitmap.charId;
 	pNode->pointSize = glyphBitmap.pointSize;
