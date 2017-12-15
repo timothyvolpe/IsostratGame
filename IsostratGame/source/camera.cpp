@@ -21,7 +21,7 @@ CCamera::CCamera()
 {
 	m_viewMatrix = glm::mat4( 1.0f );
 
-	m_eyePosition = glm::vec3( 0.0f, 05.0f, 0.0f );
+	m_eyePosition = glm::vec3( 25.0f, 15.0f, 25.0f );
 
 	m_cameraRight = CCamera::CameraRight;
 	m_cameraUp = CCamera::CameraUp;

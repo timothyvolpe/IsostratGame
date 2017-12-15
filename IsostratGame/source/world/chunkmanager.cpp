@@ -130,6 +130,9 @@ bool CChunkManager::initialize()
 	m_pBlockStone = new CBlock( 2 );
 	m_pBlockStone->setBlockColor( glm::ivec3( 150, 150, 150 ) );
 	this->registerBlock( m_pBlockStone );
+	m_pBlockWater = new CBlock( 3 );
+	m_pBlockWater->setBlockColor( glm::ivec3( 0, 0, 150 ) );
+	this->registerBlock( m_pBlockWater );
 
 	m_renderPos = this->getEyeChunk();
 
@@ -148,21 +151,113 @@ void CChunkManager::destroy()
 	// Destroy the blocks
 	SAFE_DELETE( m_pBlockGrass );
 	SAFE_DELETE( m_pBlockStone );
+	SAFE_DELETE( m_pBlockWater );
 	m_blockClasses.clear();
+}
+
+void CChunkManager::updateChunkGrid( char movementDirection )
+{
+	boost::unique_lock<boost::shared_mutex> lock( m_mutex_ );
+	std::vector<CChunk*> m_oldRow;
+	std::vector<CChunk*> m_oldColumn;
+	int rowPos;
+
+	switch( movementDirection )
+	{
+	case CHUNK_DIRECTION_BACK:
+		// Push a "new" row to the front, pop the old row off the back
+		m_oldRow = m_chunkGrid_.back();
+		m_chunkGrid_.pop_back();
+		m_chunkGrid_.insert( m_chunkGrid_.begin(), m_oldRow );
+		break;
+	case CHUNK_DIRECTION_FRONT:
+		// Push a "new" row to the back, pop the old row off the front
+		m_oldRow = m_chunkGrid_.front();
+		m_chunkGrid_.erase( m_chunkGrid_.begin() );
+		m_chunkGrid_.push_back( m_oldRow );
+		break;
+	case CHUNK_DIRECTION_RIGHT:
+		// Push a "new" column to the right, and pop the old column off the back
+		for( auto it = m_chunkGrid_.begin(); it != m_chunkGrid_.end(); it++ ) {
+			m_oldColumn.push_back( (*it).front() );
+			(*it).erase( (*it).begin() );
+		}
+		// Insert old
+		rowPos = m_chunkGrid_.size()-1;
+		for( auto it = m_chunkGrid_.begin(); it != m_chunkGrid_.end(); it++, rowPos-- )
+			(*it).push_back( m_oldColumn[rowPos] );
+		break;
+	case CHUNK_DIRECTION_LEFT:
+		// Push a "new" column to the right, and pop the old column off the back
+		for( auto it = m_chunkGrid_.begin(); it != m_chunkGrid_.end(); it++ ) {
+			m_oldColumn.push_back( (*it).back() );
+			(*it).pop_back();
+		}
+		// Insert old
+		rowPos = 0;
+		for( auto it = m_chunkGrid_.begin(); it != m_chunkGrid_.end(); it++, rowPos++ )
+			(*it).insert( (*it).begin(), m_oldColumn[rowPos] );
+		break;
+	default:
+		PrintError( L"Invalid chunk movement direction\n" );
+		break;
+	}
+	lock.unlock();
+
+	// Set new positions
+	for( unsigned int x = 0; x < m_chunkGrid_.size(); x++ ) {
+		for( unsigned int y = 0; y < m_chunkGrid_[x].size(); y++ ) {
+			if( m_chunkGrid_[x][y] )
+				m_chunkGrid_[x][y]->setChunkGridPos( glm::ivec2( x, y ) );
+		}
+	}
+	// Delete/cache old chunks and request new ones to replace them
+	for( auto it = m_oldRow.begin(); it != m_oldRow.end(); it++ ) {
+		if( (*it) )
+			this->removeChunk( (*it) );
+	}
+	for( auto it = m_oldColumn.begin(); it != m_oldColumn.end(); it++ ) {
+		if( (*it) )
+			this->removeChunk( (*it) );
+	}
+
+	boost::shared_lock_guard<boost::shared_mutex> lock2( m_mutex_ );
+	switch( movementDirection )
+	{
+	case CHUNK_DIRECTION_FRONT:
+		for( unsigned int y = 0; y < m_chunkGrid_.size(); y++ )
+			m_pChunkLoader->addChunkToQueue( this->gridPosToAbsolutePos( glm::ivec2( m_chunkGrid_.size()-1, y ) ) );
+		break;
+	case CHUNK_DIRECTION_BACK:
+		for( unsigned int y = 0; y < m_chunkGrid_.size(); y++ )
+			m_pChunkLoader->addChunkToQueue( this->gridPosToAbsolutePos( glm::ivec2( 0, y ) ) );
+		break;
+	case CHUNK_DIRECTION_RIGHT:
+		for( unsigned int x = 0; x < m_chunkGrid_.size(); x++)
+			m_pChunkLoader->addChunkToQueue( this->gridPosToAbsolutePos( glm::ivec2( x, m_chunkGrid_.size()-1 ) ) );
+		break;
+	case CHUNK_DIRECTION_LEFT:
+		for( unsigned int x = 0; x < m_chunkGrid_.size(); x++ )
+			m_pChunkLoader->addChunkToQueue( this->gridPosToAbsolutePos( glm::ivec2( x, 0 ) ) );
+		break;
+	default:
+		PrintError( L"Invalid chunk movement direction\n" );
+		break;
+	}	
 }
 
 void CChunkManager::update()
 {
 	int chunksCopied;
 	LoadedChunk chunk;
-	glm::ivec2 gridOrigin, chunkGridPos, eyeChunk;
+	glm::ivec2 chunkGridPos, eyeChunk;
 	char movementDirection;
 
 	m_pChunkLoader->sendChunkQueue();
 
 	// Copy over all the new chunks (maximum of 5 per frame)
 	chunksCopied = 0;
-	while( chunksCopied < 5 && m_pChunkLoader->getFinishedQueueSize() > 0 )
+	while( chunksCopied < 1 && m_pChunkLoader->getFinishedQueueSize() > 0 )
 	{
 		// Make sure we get a valid chunk (it wasnt cleared)
 		chunk = m_pChunkLoader->popFinishedChunk();
@@ -170,10 +265,11 @@ void CChunkManager::update()
 			continue;
 
 		// Put it in grid position
-		gridOrigin = m_renderPos - (int)m_chunkViewDistance;
-		chunkGridPos = chunk.position - gridOrigin;
+		chunkGridPos = this->absolutePosToGridPos( chunk.position );
 		// Check if its out of bounds
-		if( chunkGridPos.x >= (m_chunkViewDistance * 2 + 1) || chunkGridPos.y >= (m_chunkViewDistance * 2 + 1) ) {
+		if( chunkGridPos.x >= (m_chunkViewDistance * 2 + 1) || chunkGridPos.y >= (m_chunkViewDistance * 2 + 1) || 
+			chunkGridPos.x < 0 || chunkGridPos.y < 0 )
+		{
 			chunk.pChunk->destroy();
 			SAFE_DELETE( chunk.pChunk );
 			continue;
@@ -182,7 +278,7 @@ void CChunkManager::update()
 			chunk.pChunk->setChunkGridPos( chunkGridPos );
 			m_chunks.push_back( chunk.pChunk );
 			boost::unique_lock<boost::shared_mutex> lock( m_mutex_ );
-			m_chunkGrid[chunkGridPos.x][chunkGridPos.y] = chunk.pChunk;
+			m_chunkGrid_[chunkGridPos.x][chunkGridPos.y] = chunk.pChunk;
 			lock.unlock();
 		}
 
@@ -196,7 +292,7 @@ void CChunkManager::update()
 				// If we found a spot
 				if( (*it2) == false )
 				{
-					chunk.pChunk->setBufferPosition( bufferIndex, chunkIndex*CHUNK_VERTEX_COUNT, chunkIndex*CHUNK_INDEX_COUNT );
+					chunk.pChunk->setBufferPosition( bufferIndex, chunkIndex );
 					chunk.pChunk->sendDataToBuffers();
 					(*it2) = true;
 					it = m_hasChunkInBuffer.end()-1;
@@ -214,19 +310,19 @@ void CChunkManager::update()
 	if( eyeChunk != m_renderPos )
 	{
 		if( eyeChunk.x == m_renderPos.x && eyeChunk.y > m_renderPos.y )
-			movementDirection = CHUNK_DIRECTION_FRONT;
-		else if( eyeChunk.x == m_renderPos.x && eyeChunk.y < m_renderPos.y )
-			movementDirection = CHUNK_DIRECTION_BACK;
-		else if( eyeChunk.x < m_renderPos.x && eyeChunk.y == m_renderPos.y )
-			movementDirection = CHUNK_DIRECTION_LEFT;
-		else if( eyeChunk.x > m_renderPos.x && eyeChunk.y == m_renderPos.y )
 			movementDirection = CHUNK_DIRECTION_RIGHT;
+		else if( eyeChunk.x == m_renderPos.x && eyeChunk.y < m_renderPos.y )
+			movementDirection = CHUNK_DIRECTION_LEFT;
+		else if( eyeChunk.x < m_renderPos.x && eyeChunk.y == m_renderPos.y )
+			movementDirection = CHUNK_DIRECTION_BACK;
+		else if( eyeChunk.x > m_renderPos.x && eyeChunk.y == m_renderPos.y )
+			movementDirection = CHUNK_DIRECTION_FRONT;
 		else {
 			PrintError( L"Chunks move two directions??\n" );
 			movementDirection = 0;
 		}
-
 		m_renderPos = eyeChunk;
+		this->updateChunkGrid( movementDirection );
 	}
 
 	// Sort the chunks buffer vertex array object
@@ -287,17 +383,41 @@ bool CChunkManager::allocateChunks( unsigned char viewDistance )
 	m_chunks.reserve( m_chunkCount );
 	// Load each chunk
 	boost::unique_lock<boost::shared_mutex> lock( m_mutex_ );
-	m_chunkGrid.resize( (m_chunkViewDistance * 2 + 1) );
+	m_chunkGrid_.resize( (m_chunkViewDistance * 2 + 1) );
 	for( int x = 0; x < (m_chunkViewDistance * 2 + 1); x++ ) {
 		for( int z = 0; z < (m_chunkViewDistance * 2 + 1); z++ ) {
 			m_pChunkLoader->addChunkToQueue( glm::ivec2( renderPosOffset.x + x, renderPosOffset.y + z ) );
-			m_chunkGrid[x].push_back( 0 );
+			m_chunkGrid_[x].push_back( 0 );
 		}
 	}
+	lock.unlock();
 
 	// Generate initial chunk meshes
 	if( !this->generateMeshes() )
 		return false;
+
+	return true;
+}
+bool CChunkManager::removeChunk( CChunk *pChunk )
+{
+	boost::unique_lock<boost::shared_mutex> lock( m_mutex_ );
+	if( !pChunk )
+		return false;
+	// Remove from grid
+	m_chunkGrid_[pChunk->getChunkGridPos().x][pChunk->getChunkGridPos().y] = 0;
+	// Find and remove from chunk list
+	auto it = std::find( m_chunks.begin(), m_chunks.end(), pChunk );
+	if( it != m_chunks.end() )
+		m_chunks.erase( it );
+	// Remove from buffer
+	if( pChunk->hasBufferPosition() ) {
+		int bufferIndex = pChunk->getBufferIndex();
+		int chunkIndex = pChunk->getChunkIndex();
+		m_hasChunkInBuffer[bufferIndex][chunkIndex] = false;
+	}
+
+	pChunk->destroy();
+	SAFE_DELETE( pChunk );
 
 	return true;
 }
@@ -312,7 +432,7 @@ void CChunkManager::destroyChunks()
 	m_chunkCount = 0;
 	m_chunks.clear();
 	boost::unique_lock<boost::shared_mutex> lock( m_mutex_ );
-	m_chunkGrid.clear();
+	m_chunkGrid_.clear();
 }
 
 bool CChunkManager::setSaveFile( std::wstring saveName )
@@ -331,7 +451,7 @@ bool CChunkManager::setSaveFile( std::wstring saveName )
 
 	// Create the space for the chunks in memory
 	// Begin loading them from file and creating their vertex data
-	if( !this->allocateChunks( 4 ) )
+	if( !this->allocateChunks( 5 ) )
 		return false;
 
 	return true;
@@ -382,12 +502,12 @@ CChunk* CChunkManager::getChunkNeighbor( glm::ivec2 vectorPos, char direction )
 	}
 
 	boost::shared_lock_guard<boost::shared_mutex> lock( m_mutex_ );
-	if( (size_t)neighborPos.x >= m_chunkGrid.size() )
+	if( (size_t)neighborPos.x >= m_chunkGrid_.size() )
 		return NULL;
-	else if( (size_t)neighborPos.y >= m_chunkGrid[neighborPos.x].size() )
+	else if( (size_t)neighborPos.y >= m_chunkGrid_[neighborPos.x].size() )
 		return NULL;
 	else
-		return m_chunkGrid[neighborPos.x][neighborPos.y];
+		return m_chunkGrid_[neighborPos.x][neighborPos.y];
 }
 glm::ivec2 CChunkManager::getEyeChunk() {
 	glm::vec3 eyePos = CGame::instance().getGraphics()->getCamera()->getEyePosition();
@@ -397,6 +517,17 @@ void CChunkManager::getBufferIds( int bufferIndex, unsigned int *pVertexArrayId,
 	(*pVertexArrayId) = m_chunkVertexArrays[bufferIndex];
 	(*pVertexBufferId) = m_chunkVertexBuffers[bufferIndex];
 	(*pIndexBufferId) = m_chunkIndexBuffers[bufferIndex];
+}
+
+glm::ivec2 CChunkManager::absolutePosToGridPos( glm::ivec2 chunkPos )
+{
+	glm::ivec2 gridOrigin = m_renderPos - (int)m_chunkViewDistance;
+	return chunkPos - gridOrigin;
+}
+glm::ivec2 CChunkManager::gridPosToAbsolutePos( glm::ivec2 gridPos )
+{
+	glm::ivec2 gridOrigin = m_renderPos - (int)m_chunkViewDistance;
+	return gridPos + gridOrigin;
 }
 
 //////////////////
@@ -588,15 +719,13 @@ bool CChunkLoader::populateChunkDataFromFile( glm::ivec2 position, CChunk *pChun
 	// Generate geometry
 	if( !pChunk->generateVertices() )
 		return false;
-	if( !pChunk->generateIndices() )
-		return false;
+	//if( !pChunk->generateIndices() )
+		//return false;
 
 	return true;
 }
 void CChunkLoader::loadQueue()
 {
-	PrintInfo( L"THREAD: Loading new chunks...\n" );
-
 	while( this->getQueueSize() > 0 )
 	{
 		glm::ivec2 pos;
@@ -619,8 +748,6 @@ void CChunkLoader::loadQueue()
 	}
 
 	m_chunksToLoad_.store( false );
-
-	PrintInfo( L"THREAD: Done loading!\n" );
 }
 void CChunkLoader::setSavePath( boost::filesystem::path savePath )
 {
@@ -642,8 +769,10 @@ bool CChunk::isOccludingBlock( CBlock* pBlock )
 	return true;
 }
 
-CChunk::CChunk() {
+CChunk::CChunk()
+{
 	m_bufferIndex = 0;
+	m_chunkIndex = 0;
 	m_vertexOffset = 0;
 	m_indexOffset = 0;
 	m_vertexCount = 0;
@@ -652,6 +781,7 @@ CChunk::CChunk() {
 	m_chunkGridPos = glm::ivec2( 0, 0 );
 	m_pVertices = 0;
 	m_pIndices = 0;
+	m_bHasBufferPos = false;
 }
 CChunk::~CChunk() {
 }
@@ -678,20 +808,26 @@ void CChunk::destroy()
 		SAFE_DELETE_A( m_pIndices );
 }
 
-void CChunk::setBufferPosition( size_t bufferIndex, GLuint vertexOffset, GLuint indexOffset )
+void CChunk::setBufferPosition( size_t bufferIndex, size_t chunkIndex )
 {
 	m_bufferIndex = bufferIndex;
-	m_vertexOffset = vertexOffset;
-	m_indexOffset = indexOffset;
+	m_chunkIndex = chunkIndex;
+	m_vertexOffset = chunkIndex*CHUNK_VERTEX_COUNT;
+	m_indexOffset = chunkIndex*CHUNK_INDEX_COUNT;
+	m_bHasBufferPos = true;
 }
 bool CChunk::generateVertices()
 {
 	GLuint currentVertex;
 	size_t currentBlock;
 	glm::ivec3 currentColor, shadowColor;
+	OcclusionList occlusionList;
+
+	// Get the occlusion list
+	occlusionList = this->getOcclusionList();
 
 	// Create space for vertex buffer
-	m_pVertices = new ChunkVertex[CHUNK_VERTEX_COUNT];
+	m_pVertices = new ChunkVertex[occlusionList.verticesRequired];
 	if( !m_pVertices ) {
 		PrintError( L"Memory error while generating chunk vertices.\n " );
 		return false;
@@ -707,7 +843,7 @@ bool CChunk::generateVertices()
 		{
 			for( unsigned int x = 0; x < CHUNK_SIDE_LENGTH; x++ )
 			{
-				if( !this->isBlockVisible( currentBlock ) ) {
+				if( occlusionList.occlusionFlags[currentBlock] == 0 ) {
 					currentBlock++;
 					continue;
 				}
@@ -715,7 +851,7 @@ bool CChunk::generateVertices()
 				shadowColor = glm::ivec3( currentColor.r / 2, currentColor.g / 2, currentColor.b / 2 );
 
 				// TOP
-				if( !CChunk::isOccludingBlock( this->getBlockNeighbor( currentBlock, CHUNK_DIRECTION_UP ) ) ) {
+				if( !(occlusionList.occlusionFlags[currentBlock] & CHUNK_DIRECTION_UP) ) {
 					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z + 1 ), currentColor );
 					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z ), currentColor );
 					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z ), currentColor );
@@ -725,7 +861,7 @@ bool CChunk::generateVertices()
 					m_vertexCount += 6;
 				}
 				// BOTTOM
-				if( !CChunk::isOccludingBlock( this->getBlockNeighbor( currentBlock, CHUNK_DIRECTION_DOWN ) ) ) {
+				if( !(occlusionList.occlusionFlags[currentBlock] & CHUNK_DIRECTION_DOWN) ) {
 					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z ), currentColor );
 					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z ), currentColor );
 					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z + 1 ), currentColor );
@@ -735,7 +871,7 @@ bool CChunk::generateVertices()
 					m_vertexCount += 6;
 				}
 				// FRONT
-				if( !CChunk::isOccludingBlock( this->getBlockNeighbor( currentBlock, CHUNK_DIRECTION_BACK ) ) ) {
+				if( !(occlusionList.occlusionFlags[currentBlock] & CHUNK_DIRECTION_BACK) ) {
 					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z + 1 ), shadowColor );
 					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z + 1 ), shadowColor );
 					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z + 1 ), shadowColor );
@@ -745,7 +881,7 @@ bool CChunk::generateVertices()
 					m_vertexCount += 6;
 				}
 				// BACK
-				if( !CChunk::isOccludingBlock( this->getBlockNeighbor( currentBlock, CHUNK_DIRECTION_FRONT ) ) ) {
+				if( !(occlusionList.occlusionFlags[currentBlock] & CHUNK_DIRECTION_FRONT) ) {
 					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z ), shadowColor / 2 );
 					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z ), shadowColor / 2 );
 					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z ), shadowColor / 2 );
@@ -755,7 +891,7 @@ bool CChunk::generateVertices()
 					m_vertexCount += 6;
 				}
 				// RIGHT
-				if( !CChunk::isOccludingBlock( this->getBlockNeighbor( currentBlock, CHUNK_DIRECTION_RIGHT ) ) ) {
+				if( !(occlusionList.occlusionFlags[currentBlock] & CHUNK_DIRECTION_RIGHT) ) {
 					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y, z ), shadowColor / 2 );
 					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z ), shadowColor / 2 );
 					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x + 1, y + 1, z + 1 ), shadowColor / 2 );
@@ -765,7 +901,7 @@ bool CChunk::generateVertices()
 					m_vertexCount += 6;
 				}
 				// LEFT
-				if( !CChunk::isOccludingBlock( this->getBlockNeighbor( currentBlock, CHUNK_DIRECTION_LEFT ) ) ) {
+				if( !(occlusionList.occlusionFlags[currentBlock] & CHUNK_DIRECTION_LEFT) ) {
 					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z + 1 ), shadowColor );
 					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y + 1, z ), shadowColor );
 					m_pVertices[currentVertex++] = GenVertex( glm::ivec3( x, y, z ), shadowColor );
@@ -886,7 +1022,7 @@ bool CChunk::sendDataToBuffers()
 		PrintError( L"Failed to update terrain\n" );
 		return false;
 	}
-	memcpy( pVertices, m_pVertices, sizeof( ChunkVertex )*CHUNK_VERTEX_COUNT );
+	memcpy( pVertices, m_pVertices, sizeof( ChunkVertex )*m_vertexCount );
 	// Finish
 	glUnmapBuffer( GL_ARRAY_BUFFER );
 
@@ -920,21 +1056,69 @@ void CChunk::setRawData( unsigned short *pData )
 	}
 }
 
-bool CChunk::isBlockVisible( glm::vec3 pos ) {
+OcclusionList CChunk::getOcclusionList()
+{
+	OcclusionList occlusionList;
+	std::array<unsigned char, CHUNK_BLOCK_COUNT> occlusionFlags;
+	GLuint verticesRequired;
+
+	int index = 0;
+	verticesRequired = CHUNK_VERTEX_COUNT;
+	for( auto it = m_blocks.begin(); it != m_blocks.end(); it++, index++ )
+	{
+		occlusionFlags[index] = 0;
+		if( !this->isBlockVisible( index, true ) ) {
+			verticesRequired -= 36;
+			continue;
+		}
+
+		if( CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_UP, true ) ) ) {
+			occlusionFlags[index] |= CHUNK_DIRECTION_UP;
+			verticesRequired -= 6;
+		}
+		if( CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_DOWN, true ) ) ) {
+			occlusionFlags[index] |= CHUNK_DIRECTION_DOWN;
+			verticesRequired -= 6;
+		}
+		if( CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_FRONT, true ) ) ) {
+			occlusionFlags[index] |= CHUNK_DIRECTION_FRONT;
+			verticesRequired -= 6;
+		}
+		if( CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_BACK, true ) ) ) {
+			occlusionFlags[index] |= CHUNK_DIRECTION_BACK;
+			verticesRequired -= 6;
+		}
+		if( CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_LEFT, true ) ) ) {
+			occlusionFlags[index] |= CHUNK_DIRECTION_LEFT;
+			verticesRequired -= 6;
+		}
+		if( CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_RIGHT, true ) ) ) {
+			occlusionFlags[index] |= CHUNK_DIRECTION_RIGHT;
+			verticesRequired -= 6;
+		}
+	}
+
+	occlusionList.occlusionFlags = occlusionFlags;
+	occlusionList.verticesRequired = verticesRequired;
+
+	return occlusionList;
+}
+
+bool CChunk::isBlockVisible( glm::vec3 pos, bool onlyInChunk ) {
 	size_t index = this->getBlockIndex( pos );
 	if( index >= CHUNK_BLOCK_COUNT )
 		return false;
-	return this->isBlockVisible( index );
+	return this->isBlockVisible( index, onlyInChunk );
 }
-bool CChunk::isBlockVisible( size_t index )
+bool CChunk::isBlockVisible( size_t index, bool onlyInChunk )
 {
 	// Make sure it exists
 	if( !this->getBlockAt( index ) )
 		return false;
 	// If the its neighbors occlude it, it isn't visible
-	if( CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_UP ) ) && CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_DOWN ) ) &&
-		CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_FRONT ) ) && CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_BACK ) ) &&
-		CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_RIGHT ) ) && CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_LEFT ) ) )
+	if( CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_UP, onlyInChunk ) ) && CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_DOWN, onlyInChunk ) ) &&
+		CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_FRONT, onlyInChunk ) ) && CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_BACK, onlyInChunk ) ) &&
+		CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_RIGHT, onlyInChunk ) ) && CChunk::isOccludingBlock( this->getBlockNeighbor( index, CHUNK_DIRECTION_LEFT, onlyInChunk ) ) )
 		return false;
 
 	return true;
@@ -943,10 +1127,10 @@ bool CChunk::isBlockVisible( size_t index )
 size_t CChunk::getBlockIndex( glm::vec3 pos ) {
 	return (size_t)(pos.y*(CHUNK_SIDE_LENGTH*CHUNK_SIDE_LENGTH)+pos.x*CHUNK_SIDE_LENGTH+pos.z);
 }
-CBlock* CChunk::getBlockNeighbor( glm::vec3 pos, char direction ) {
-	return this->getBlockNeighbor( this->getBlockIndex( pos ), direction );
+CBlock* CChunk::getBlockNeighbor( glm::vec3 pos, char direction, bool onlyInChunk ) {
+	return this->getBlockNeighbor( this->getBlockIndex( pos ), direction, onlyInChunk );
 }
-CBlock* CChunk::getBlockNeighbor( size_t index, char direction )
+CBlock* CChunk::getBlockNeighbor( size_t index, char direction, bool onlyInChunk )
 {
 	CChunkManager *pManager = CGame::instance().getGraphics()->getWorld()->getChunkManager();
 	CChunk *pNeighbor;
@@ -964,7 +1148,7 @@ CBlock* CChunk::getBlockNeighbor( size_t index, char direction )
 		// if its at the edge of the chunk
 		if( index % CHUNK_SIDE_LENGTH == (CHUNK_SIDE_LENGTH-1) ) {
 			pNeighbor = pManager->getChunkNeighbor( gridPos, CHUNK_DIRECTION_RIGHT );
-			if( pNeighbor )
+			if( pNeighbor && !onlyInChunk )
 				return pNeighbor->getBlockAt( index - (CHUNK_SIDE_LENGTH - 1) );
 			return NULL; 
 		}
@@ -974,7 +1158,7 @@ CBlock* CChunk::getBlockNeighbor( size_t index, char direction )
 		// if its at the edge of the chunk
 		if( index % CHUNK_SIDE_LENGTH == 0 ) {
 			pNeighbor = pManager->getChunkNeighbor( gridPos, CHUNK_DIRECTION_LEFT );
-			if( pNeighbor )
+			if( pNeighbor && !onlyInChunk )
 				return pNeighbor->getBlockAt( index + CHUNK_SIDE_LENGTH-1 );
 			return NULL;
 		} 
@@ -984,7 +1168,7 @@ CBlock* CChunk::getBlockNeighbor( size_t index, char direction )
 		// if its at the edge of the chunk
 		if( row == CHUNK_SIDE_LENGTH-1 ) { //  
 			pNeighbor = pManager->getChunkNeighbor( gridPos, CHUNK_DIRECTION_BACK );
-			if( pNeighbor )
+			if( pNeighbor && !onlyInChunk )
 				return pNeighbor->getBlockAt( index - CHUNK_SIDE_LENGTH*(CHUNK_SIDE_LENGTH-1) );
 			return NULL;
 		}
@@ -994,7 +1178,7 @@ CBlock* CChunk::getBlockNeighbor( size_t index, char direction )
 		// if its at the edge of the chunk
 		if( row == 0 ) { //  
 			pNeighbor = pManager->getChunkNeighbor( gridPos, CHUNK_DIRECTION_FRONT );
-			if( pNeighbor )
+			if( pNeighbor && !onlyInChunk )
 				return pNeighbor->getBlockAt( index + CHUNK_SIDE_LENGTH*(CHUNK_SIDE_LENGTH-1) );
 			return NULL;
 		}

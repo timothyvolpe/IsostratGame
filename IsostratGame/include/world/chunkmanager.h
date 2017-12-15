@@ -16,7 +16,7 @@
 #define CHUNK_VERTEX_COUNT CHUNK_BLOCK_COUNT*36 //(CHUNK_SIDE_LENGTH+1)*(CHUNK_SIDE_LENGTH+1)*(CHUNK_HEIGHT+1)
 #define CHUNK_INDEX_COUNT (CHUNK_SIDE_LENGTH*CHUNK_SIDE_LENGTH*CHUNK_HEIGHT*36)
 
-#define CHUNK_BATCH_SIZE 6*1024*1024 // max size of a single chunk vertex buffer
+#define CHUNK_BATCH_SIZE 16*1024*1024 // max size of a single chunk vertex buffer
 
 #define TERRAIN_VERSION_A 0
 #define TERRAIN_VERSION_B 3
@@ -54,12 +54,12 @@ class CChunkLoader;
 
 enum : char
 {
-	CHUNK_DIRECTION_UP,
-	CHUNK_DIRECTION_DOWN,
-	CHUNK_DIRECTION_FRONT,
-	CHUNK_DIRECTION_BACK,
-	CHUNK_DIRECTION_LEFT,
-	CHUNK_DIRECTION_RIGHT
+	CHUNK_DIRECTION_UP		= 0x01,
+	CHUNK_DIRECTION_DOWN	= 0x02,
+	CHUNK_DIRECTION_FRONT	= 0x04,
+	CHUNK_DIRECTION_BACK	= 0x08,
+	CHUNK_DIRECTION_LEFT	= 0x10,
+	CHUNK_DIRECTION_RIGHT	= 0x20
 };
 
 ///////////////////
@@ -97,7 +97,8 @@ private:
 	std::vector<CChunk*> m_chunks;
 	// A vector containing all the chunks to be rendered,
 	// but in grid order [x][y]
-	ChunkVector m_chunkGrid;
+	// Must USE mutex:
+	ChunkVector m_chunkGrid_;
 
 	glm::ivec2 m_renderPos; // the chunk the eye is in
 
@@ -112,11 +113,14 @@ private:
 
 	bool generateMeshes();
 	void destroyMeshes();
+
+	void updateChunkGrid( char movementDirection );
 public:
 	boost::shared_mutex m_mutex_;
 
 	CBlock *m_pBlockGrass;
 	CBlock *m_pBlockStone;
+	CBlock *m_pBlockWater;
 
 	CChunkManager();
 	~CChunkManager();
@@ -126,6 +130,8 @@ public:
 
 	void update();
 	void draw( glm::mat4 projection, glm::mat4 view );
+
+	bool removeChunk( CChunk *pChunk );
 
 	unsigned int getChunkIndex( int x, int y );
 
@@ -139,6 +145,9 @@ public:
 	void getBufferIds( int bufferIndex, unsigned int *pVertexArrayId, unsigned int *pVertexBufferId, unsigned int *pIndexBufferId );
 	// Get the chunk that the camera eye is in
 	glm::ivec2 getEyeChunk();
+
+	glm::ivec2 absolutePosToGridPos( glm::ivec2 chunkPos );
+	glm::ivec2 gridPosToAbsolutePos( glm::ivec2 gridPos );
 };
 
 //////////////////
@@ -198,6 +207,12 @@ public:
 // CChunk //
 ////////////
 
+struct OcclusionList
+{
+	std::array<unsigned char, CHUNK_BLOCK_COUNT> occlusionFlags;
+	GLuint verticesRequired;
+};
+
 class CChunk
 {
 private:
@@ -207,12 +222,15 @@ private:
 
 	BlockList m_blocks;
 
-	size_t m_bufferIndex;
+	size_t m_bufferIndex, m_chunkIndex;
 	GLuint m_vertexOffset, m_indexOffset;
 	GLuint m_vertexCount, m_indexCount;
+	bool m_bHasBufferPos;
 
 	ChunkVertex *m_pVertices;
 	unsigned int *m_pIndices;
+
+	OcclusionList getOcclusionList();
 public:
 	boost::shared_mutex m_mutex_;
 
@@ -223,7 +241,7 @@ public:
 
 	void setRawData( unsigned short *pData );
 
-	void setBufferPosition( size_t bufferIndex, GLuint vertexOffset, GLuint indexOffset );
+	void setBufferPosition( size_t bufferIndex, size_t chunkIndex );
 
 	// These might not be thread safe! If the chunk grid vector changes
 	// there could be issues!
@@ -234,12 +252,12 @@ public:
 	bool initialize();
 	void destroy();
 
-	bool isBlockVisible( glm::vec3 pos );
-	bool isBlockVisible( size_t index );
+	bool isBlockVisible( glm::vec3 pos, bool onlyInChunk = false );
+	bool isBlockVisible( size_t index, bool onlyInChunk = false );
 
 	size_t getBlockIndex( glm::vec3 pos );
-	CBlock* getBlockNeighbor( glm::vec3 pos, char direction );
-	CBlock* getBlockNeighbor( size_t index, char direction );
+	CBlock* getBlockNeighbor( glm::vec3 pos, char direction, bool onlyInChunk = false );
+	CBlock* getBlockNeighbor( size_t index, char direction, bool onlyInChunk = false );
 	CBlock* getBlockAt( size_t index );
 	CBlock* getBlockAt( glm::vec3 pos );
 	GLuint getIndexCount();
@@ -249,8 +267,10 @@ public:
 	void setChunkGridPos( glm::ivec2 pos ) { m_chunkGridPos = pos; }
 	glm::ivec2 getChunkGridPos() { return m_chunkGridPos; }
 	size_t getBufferIndex();
+	size_t getChunkIndex() { return m_chunkIndex; }
 	GLuint getVertexOffset();
 	GLuint getVertexCount();
+	bool hasBufferPosition() { return m_bHasBufferPos; }
 };
 
 struct ChunkComparator {
